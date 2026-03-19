@@ -89,10 +89,19 @@ At the current workspace state, USB CDC already provides:
 - verified host-to-STM32 receive path
 - RX echo support on the firmware side
 - pitch swing test support with a safety switch
+- a verified minimal pitch control validation path from upper-level host to lower-level firmware
+- the ability to switch back to the default remote/UART path after testing
+
+This validation path specifically keeps:
+
+- PID logic unchanged
+- angle/speed limiting unchanged
+- yaw mainline logic unchanged
 
 This means:
 
 - the USB CDC transport layer is bidirectionally working
+- the minimal upper-to-lower USB CDC control validation path is also working
 - but it has not fully replaced UART as the default whole-system mainline
 - the UART path should not be removed yet
 

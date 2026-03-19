@@ -137,3 +137,5 @@ If documentation conflicts with code, trust the following in order:
 - The monorepo exists, but the long-term branch policy is not fully settled yet
 - USB CDC transport is verified, but the whole-system migration is not complete
 - Some historical and experimental directories are intentionally retained as references, not as the default runtime path
+- The minimal USB CDC upper-to-lower control validation path has also been verified
+- That USB CDC path remains optional, and the default control chain still falls back to remote/UART behavior

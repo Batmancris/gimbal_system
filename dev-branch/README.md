@@ -140,4 +140,6 @@ The following directories are kept, but they are not the current default runtime
 
 - UART is still the formal whole-system communication mainline
 - USB CDC is still in migration support mode on the upper-level side
+- `scripts/usb_cdc_pitch_control_test.py` is now available for minimal `/dev/ttyACM0` pitch validation only
+- that USB CDC test script does not replace the current UART-based `rm_gimbal_bridge` mainline
 - There are multiple historical directories, so verify whether a module belongs to the current mainline before using it

@@ -121,3 +121,8 @@ Example:
 ```bash
 ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py serial_port:=/dev/ttyS1 enemy_prefix:=blue_
 ```
+
+## Current Note
+
+- The recent USB CDC validation work did not modify `rm_gimbal_bridge`
+- This package remains the current UART mainline bridge for integrated auto-aim runs
