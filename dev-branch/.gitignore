@@ -1,0 +1,26 @@
+# 忽略 .vscode 目录
+.vscode/
+
+# 忽略 armor_solver 目录
+armor_solver/
+
+# 忽略 rm_auto_aim 目录
+rm_auto_aim/
+
+# 忽略 rm_bringup 目录
+rm_bringup/
+
+# 忽略 rm_robot_description 目录
+rm_robot_description/
+
+# Build artifacts
+build/
+install/
+log/
+**/build/
+**/install/
+**/log/
+
+# Python cache
+__pycache__/
+**/__pycache__/

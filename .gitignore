@@ -1,0 +1,48 @@
+# =========================
+# Backup (MUST IGNORE)
+# =========================
+_git_migration_backup/
+*.tar.gz
+
+# =========================
+# Old git repos
+# =========================
+.git.BAK-*
+
+# =========================
+# Build artifacts (STM32)
+# =========================
+Gimbal control/build/
+*.o
+*.d
+*.elf
+*.bin
+*.map
+
+# =========================
+# ROS2 build artifacts
+# =========================
+dev-branch/build/
+dev-branch/install/
+dev-branch/log/
+
+# =========================
+# Nested build
+# =========================
+tianboard_s/**/build/
+
+# =========================
+# Python cache
+# =========================
+__pycache__/
+*.pyc
+
+# =========================
+# IDE
+# =========================
+.vscode/
+
+# =========================
+# Temp scripts
+# =========================
+tmp_*.exp

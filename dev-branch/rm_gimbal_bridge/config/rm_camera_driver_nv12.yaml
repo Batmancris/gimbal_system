@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    camera_name: "daheng"
+    camera_frame_id: "camera_optical_frame"
+    pixel_format: "rgb8"
+    resolution_width: 1280
+    resolution_height: 1024
+    auto_white_balance: 1
+    frame_rate: 100
+    exposure_time: 5000
+    gain: 5.0
+    offsetX: 0
+    offsetY: 0
+    recording: false

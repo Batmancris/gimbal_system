@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    device: "/dev/video0"
+    frame_id: "camera_optical_frame"
+    width: 1280
+    height: 1024
+    fps: 60
+    output_topic: "image"
+    camera_info_url: "package://rm_camera_driver/config/camera_info.yaml"
