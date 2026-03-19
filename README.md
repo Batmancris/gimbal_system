@@ -28,3 +28,5 @@ Old multi-repo branches should be treated as historical references only, not as 
 
 - This repository no longer uses the previous split daily-development model.
 - Local migration backups and retired nested Git metadata are intentionally kept out of version control.
+- Since 2026-03-19, the workspace has also completed a minimal USB CDC upper-to-lower control validation path.
+- That validation remains an optional test path only and the default control chain still falls back to remote/UART behavior.

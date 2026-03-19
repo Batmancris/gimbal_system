@@ -145,6 +145,7 @@ static fp32 motor_ecd_to_angle_change(uint16_t ecd, uint16_t offset_ecd);
 static void gimbal_set_control(gimbal_control_t *set_control, const gimbal_mode_command_t *mode_command, const target_state_t *target_state);
 static void gimbal_apply_vision_control(fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state, uint8_t vision_enabled);
 static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control, fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state);
+static void gimbal_apply_usb_pitch_control(gimbal_control_t *set_control, fp32 *add_pitch_angle);
 /**
   * @brief          control loop, according to control set-point, calculate motor current, 
   *                 motor current will be sent to motor
@@ -864,16 +865,7 @@ static void gimbal_set_control(gimbal_control_t *set_control,
         gimbal_relative_angle_limit(&set_control->gimbal_yaw_motor, add_yaw_angle);
     }
 
-  #if (USB_TEST_CONTROL_MODE == USB_TEST_PITCH_CONTROL)
-    if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO)
-    {
-      add_pitch_angle = UsbCdcTest_GetPitchTargetRad() - set_control->gimbal_pitch_motor.absolute_angle_set;
-    }
-    else
-    {
-      add_pitch_angle = UsbCdcTest_GetPitchTargetRad() - set_control->gimbal_pitch_motor.relative_angle_set;
-    }
-  #endif
+    gimbal_apply_usb_pitch_control(set_control, &add_pitch_angle);
 
     if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_RAW)
     {
@@ -959,6 +951,33 @@ static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control,
     (void)add_pitch_angle;
     (void)target_state;
     return 0U;
+#endif
+}
+
+static void gimbal_apply_usb_pitch_control(gimbal_control_t *set_control, fp32 *add_pitch_angle)
+{
+#if (USB_TEST_CONTROL_MODE == USB_TEST_PITCH_CONTROL)
+    fp32 target_pitch_rad;
+
+    if (set_control == NULL || add_pitch_angle == NULL)
+    {
+        return;
+    }
+
+    target_pitch_rad = UsbCdcTest_GetPitchTargetRad();
+
+    // Only override the pitch setpoint in test mode. Yaw stays on the original path.
+    if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO)
+    {
+        *add_pitch_angle = target_pitch_rad - set_control->gimbal_pitch_motor.absolute_angle_set;
+    }
+    else
+    {
+        *add_pitch_angle = target_pitch_rad - set_control->gimbal_pitch_motor.relative_angle_set;
+    }
+#else
+    (void)set_control;
+    (void)add_pitch_angle;
 #endif
 }
 

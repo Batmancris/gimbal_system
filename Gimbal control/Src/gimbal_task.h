@@ -130,7 +130,12 @@
 
 #define USB_TEST_DISABLE        0
 #define USB_TEST_PITCH_CONTROL  1
+
+// Keep disabled by default so the normal control path is unchanged.
+// You may override this at compile time or edit it locally for USB CDC validation.
+#ifndef USB_TEST_CONTROL_MODE
 #define USB_TEST_CONTROL_MODE   USB_TEST_DISABLE
+#endif
 
 //test mode, 0 close, 1 open
 //云台测试模式 宏定义 0 为不使用测试模式

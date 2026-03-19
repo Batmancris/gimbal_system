@@ -42,6 +42,8 @@
 
 - `rm_gimbal_bridge` 当前主链仍按 UART 方向组织
 - USB CDC 当前只保留最小测试支线，不作为当前比赛/联调主方案
+- 当前已新增独立测试脚本 `scripts/usb_cdc_pitch_control_test.py`
+- 该脚本已完成 `/dev/ttyACM0` 到 STM32 的最小 pitch 控制验证，但不会替代 UART 正式链路
 - USB CDC 的后续迁移目标由下位机主工程中的文档统一管理：
   - `../Gimbal control/USB_CDC_MIGRATION.md`
 
