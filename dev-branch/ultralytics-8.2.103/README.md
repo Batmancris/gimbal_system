@@ -1,3 +1,9 @@
+> Project note
+>
+> This directory is kept in the workspace as a local third-party Ultralytics source snapshot for training, tuning, and source reference.
+> It is not the default runtime mainline of the current auto-aim system.
+> The active project runtime path is documented in `../README.md`.
+
 <div align="center">
   <p>
     <a href="https://www.ultralytics.com/events/yolovision" target="_blank">
