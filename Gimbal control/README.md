@@ -1,57 +1,47 @@
 # Gimbal control
 
-## 简介
+[中文](#中文) | [English](#english)
 
-`Gimbal control` 是当前项目的下位机主线工程，运行在 STM32F407 / DJI C 板上，负责云台、电机、传感器与上下位机通信。
+## 中文
 
-当前目录主要包含：
+### 简介
+
+`Gimbal control` 是当前项目唯一可信的下位机主线工程，运行在 STM32F407 / DJI C 板一类控制板上。
+
+该工程主要负责：
 
 - 云台姿态与电机控制
-- CAN 总线与 GM6020 电机交互
-- DBUS 遥控器输入
+- CAN 总线和电机交互
+- DBUS 遥控输入
 - BMI088 / IST8310 IMU 与姿态解算
-- 视觉输入链路
+- 视觉输入解析
 - FreeRTOS 任务组织
 
-## 当前定位
+### 当前主线结论
 
-- 主线代码：是
-- 直接参与当前系统联调：是
-- 当前稳定主链通信：UART
-- 当前新增诊断链路：USB CDC
+- 下位机主线：是
+- 当前稳定通信主链：`UART`
+- 当前迁移方向：`USB CDC`
+- 当前建议：继续以本目录作为唯一下位机演进基础
 
-## USB CDC 当前进展
+### USB CDC 当前状态
 
-截至本次提交，`Gimbal control` 已完成一条可独立验证的 USB CDC 诊断支线：
+截至当前工作区状态，USB CDC 已完成以下基础能力：
 
-- STM32 端已经成功枚举为 USB CDC ACM 设备
-- RDK-X5 端可识别 `/dev/ttyACM0`
-- STM32 可周期性发送 heartbeat：`HB\\r\\n`
-- RDK-X5 -> STM32 的 USB RX 通路已经打通
-- STM32 在收到数据后可将前 16 字节原样回显
+- STM32 端成功枚举为 USB CDC ACM 设备
+- 主机端可识别为 `/dev/ttyACM0`
+- 下位机可周期性发送 heartbeat：`HB\r\n`
+- 主机到 STM32 的接收路径已打通
+- 下位机可对收到的数据进行回显
+- 已增加 pitch swing test with safety switch 诊断能力
 
-这意味着：
+这说明：
 
-- USB CDC 的 **双向基础通信已验证通过**
-- 还没有接回完整视觉主链
-- 当前仍然不修改控制律和 `gimbal_task.c`
+- USB CDC 传输层已经双向打通
+- 但它还没有完全替代 UART 成为整机默认主链
+- 当前不应贸然删除 UART 相关路径
 
-## 关键目录
-
-- `Src/`
-  主要业务逻辑、任务和 USB CDC 诊断实现
-- `Inc/`
-  公共头文件和 HAL 配置
-- `USB_DEVICE/`
-  从参考工程移植过来的 USB Device / CDC 基础代码
-- `Chassis/`
-  底盘、遥控、CAN 等底层控制
-- `IMU/`
-  姿态与传感器相关代码
-- `algorithm/`
-  PID、AHRS、中间件与数学库
-
-## 关键文件
+### 关键文件
 
 - `Src/main.c`
 - `Src/freertos.c`
@@ -59,9 +49,65 @@
 - `Src/vision_input.c`
 - `Src/usb_cdc_test.c`
 - `USB_DEVICE/App/usbd_cdc_if.c`
+- `USB_CDC_MIGRATION.md`
 
-## 当前建议
+### 当前建议
 
-- 若要继续推进 USB CDC，请以当前目录为唯一下位机主线继续演进
-- 不建议另起一套新的 STM32 工程
-- 在 USB CDC 完全替代 UART 之前，保留现有 UART 兼容路径更安全
+1. 继续把本目录作为唯一正式下位机工程维护
+2. 继续保留 UART 兼容路径直到 USB CDC 全链路验证完成
+3. 若继续推进 USB CDC，请优先复用现有 `vision_input` 与 `usb_cdc_test` 入口
+
+## English
+
+### Overview
+
+`Gimbal control` is the only trusted lower-level firmware mainline in the current project, targeting STM32F407 / DJI C-board class controllers.
+
+This firmware is responsible for:
+
+- gimbal attitude and motor control
+- CAN bus and motor interaction
+- DBUS remote input
+- BMI088 / IST8310 IMU and attitude estimation
+- visual input parsing
+- FreeRTOS task organization
+
+### Current Mainline Status
+
+- Lower-level mainline: yes
+- Current validated communication path: `UART`
+- Current migration direction: `USB CDC`
+- Current recommendation: continue evolving this directory as the only formal lower-level codebase
+
+### USB CDC Status
+
+At the current workspace state, USB CDC already provides:
+
+- successful STM32 USB CDC ACM enumeration
+- host-side device visibility as `/dev/ttyACM0`
+- periodic firmware heartbeat transmission: `HB\r\n`
+- verified host-to-STM32 receive path
+- RX echo support on the firmware side
+- pitch swing test support with a safety switch
+
+This means:
+
+- the USB CDC transport layer is bidirectionally working
+- but it has not fully replaced UART as the default whole-system mainline
+- the UART path should not be removed yet
+
+### Key Files
+
+- `Src/main.c`
+- `Src/freertos.c`
+- `Src/gimbal_task.c`
+- `Src/vision_input.c`
+- `Src/usb_cdc_test.c`
+- `USB_DEVICE/App/usbd_cdc_if.c`
+- `USB_CDC_MIGRATION.md`
+
+### Current Recommendation
+
+1. Keep this directory as the only formal lower-level firmware project
+2. Preserve UART compatibility until USB CDC is validated across the full system
+3. Reuse the existing `vision_input` and `usb_cdc_test` hooks for continued USB CDC migration

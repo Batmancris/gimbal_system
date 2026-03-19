@@ -1,3 +1,9 @@
+> 项目内说明
+>
+> 该目录在当前工作区中作为第三方 Ultralytics 源码快照保留，用于训练、调参和源码参考。
+> 它不是当前自瞄系统的默认运行主链。
+> 当前项目主线请参考 `../README.md`。
+
 <div align="center">
   <p>
     <a href="https://www.ultralytics.com/events/yolovision" target="_blank">

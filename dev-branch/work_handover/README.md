@@ -1,167 +1,39 @@
-# RM Armor Tracker 项目概述
+# work_handover
 
-## 项目简介
+[中文](#中文) | [English](#english)
 
-**RM Armor Tracker** 是一个专为 RoboMaster 机器人竞赛设计的**视觉感知与控制系统**。项目集成了传统图像处理与深度学习算法，实现对敌方机器人装甲板的实时检测、跟踪和定位，为自主瞄准与打击提供可靠的视觉输入。
+## 中文
 
----
+### 简介
 
-## 项目目标
+`work_handover` 用于保存项目交接、汇报和阶段性整理文档。
 
-- **实时检测**：在复杂环境下稳定识别装甲板目标
-- **精准跟踪**：实现多目标持续跟踪与ID管理
-- **位姿解算**：计算目标在三维空间中的位置和姿态
-- **控制集成**：将视觉信息转换为云台控制指令
-- **模块化设计**：便于算法替换和功能扩展
+### 当前定位
 
----
+- 主线源码：否
+- 文档作用：交接参考、历史背景、阶段性总结
+- 使用方式：可参考，但不应覆盖当前各主线 README 的结论
 
-## 技术架构
+### 当前注意事项
 
-### 系统流程图
+- 本目录中的部分文档写于不同阶段，可能带有乐观表述、待补充项或旧路径名
+- 若与当前代码状态冲突，请优先以当前源码和主线 README 为准
+- 目录中提到的 `docs/` 结构并不完全等同于当前仓库真实布局
 
-→ [相机硬件]  
-→ [图像采集]  
-→ [预处理]  
-→ [装甲板检测]  
-→ [目标跟踪]  
-→ [位姿解算]  
-→ [控制指令]  
-→ [电机执行]
+## English
 
-### 核心模块
+### Overview
 
-| 模块 | 技术实现 | 状态 | 输出 |
-|------|---------|------|------|
-| **图像采集** | Daheng Galaxy SDK + ROS2驱动 | ✅ 完成 | `/image_raw`, `/hbmem_img` |
-| **传统检测器** | 光条提取 + 几何匹配 | ✅ 完成 | 装甲板候选框，二值图像 |
-| **YOLOv8检测器** | YOLOv8n + BPU加速推理 | ✅ 完成 | 分类结果与边界框 |
-| **目标跟踪器** | Kalman滤波 | ✅ 完成 | 目标ID与运动轨迹 |
-| **位姿解算** | PnP算法 + 相机标定 | ✅ 完成 | 3D位置与姿态 |
-| **控制接口** | CAN协议 | ✅ 完成 | 云台控制指令 |
-| **可视化** | RViz2 + Websocket界面 | ✅ 完成 | 实时检测结果展示 |
+`work_handover` stores handover, reporting, and stage-summary documents for the project.
 
----
+### Current Role
 
-## 性能指标
+- Mainline source code: no
+- Documentation purpose: handover reference, historical context, and milestone summaries
+- Usage guidance: useful for context, but should not override the conclusions stated in the current mainline README files
 
-### 传统检测方案 (x86平台)
-- **处理帧率**: ≈ 203 FPS (i7-10800H)
-- **检测延迟**: < 10ms
-- **准确率**: [待补充测试数据]
-- **多目标支持**: 最多6个并发目标
+### Current Cautions
 
-### 深度学习方案 (RDK X5平台)
-- **处理帧率**: ≈ 72 FPS
-- **检测延迟**: < 25ms
-- **准确率**: [待补充测试数据]
-- **多目标支持**: 最多10个并发目标
-
----
-
-## 项目特点
-
-### 核心优势
-1. **双模式检测**：传统视觉与深度学习方案并存，适应不同场景需求
-2. **松耦合设计**：模块间通过ROS2话题通信，便于独立开发和测试
-3. **完整工具链**：从图像采集到控制输出的全链路解决方案
-4. **跨平台支持**：兼容x86_64和ARM架构，支持多种硬件配置
-5. **详尽文档**：代码注释丰富，部署流程详细
-
-### 教育价值
-- 可作为机器人视觉入门项目
-- 提供完整的ROS2开发示例
-- 涵盖传统CV与深度学习对比实践
-
----
-
-## 应用场景
-
-| 场景 | 适用模块 | 说明 |
-|------|---------|------|
-| **RoboMaster竞赛** | 全系统 | 自主瞄准与打击系统 |
-| **教学实验** | 检测/跟踪模块 | 计算机视觉课程实践 |
-| **工业视觉** | 检测模块 | 物体定位与识别 |
-| **算法研究** | 各独立模块 | 算法对比与优化 |
-
----
-
-## 发展路线
-
-### 已实现里程碑
-- **2025-01-08**: 基础框架搭建，相机驱动完成
-- **2025-02-06**: 传统检测器实现
-- **2025-02-20**: YOLOv8检测器集成
-- **2025-02-25**: 目标跟踪器基础版本
-
-### 计划功能
-- [ ] 多传感器融合 (IMU/雷达)
-- [ ] 深度学习模型优化升级
-- [ ] 自动化参数调优工具
-- [ ] 云平台远程监控
-- [ ] Gazebo仿真环境
-
----
-
-## 团队与贡献
-
-### 核心成员
-| 角色 | 负责人 | 联系方式 | 主要贡献 |
-|------|-------|---------|---------|
-| **项目负责人** | 田博 | [待补充] | 项目规划与协调 |
-| **视觉算法** | 刘文华 | <leonardo_smile@outlook.com> | 检测、跟踪算法开发 |
-| **控制系统** | 王博凯 | [待补充] | 电机控制接口 |
-| **机械结构** | 侯景峰 | <2061537800@qq.com> | 结构设计 |
-| **RDK社区** | 吴诺 | [待补充] | 示例Demo |
-
-### 技术支持
-- **D-Robotics**: @wunuo - RDK X5平台支持
-- **DAHENG IMAGING**: @jerry - 相机硬件支持
-- **开源社区**: RM Vision框架参考
-
----
-
-## 相关资源
-
-### 重要链接
-- **代码仓库**: [https://github.com/tianbot/rm_armor_tracker/tree/dev](https://github.com/tianbot/rm_armor_tracker/tree/dev)
-- **RM Vision参考**: [https://github.com/chenjun](https://github.com/chenjun)
-- **RDK X5文档**: [https://developer.d-robotics.cc/](https://developer.d-robotics.cc/)
-- **相机SDK**: [https://www.daheng-imaging.com/](https://www.daheng-imaging.com/)
-
-### 文档结构
-
-<pre>
-项目文档/
-├── README.md # 项目总览
-├── docs/
-│ ├── hardware_link.md # 硬件接线指南 （缺图）
-│ ├── parameter_tuning.md # 参数调优手册
-│ ├── implment.md # 部署流程指南
-│ └── troubleshooting.md # 故障排查指南（待补充）
-└── examples/ # 使用示例（待办）
-</pre>
-
----
-
-## 许可证说明
-
-| 组件 | 许可证 | 备注 |
-|------|-------|------|
-| **Galaxy SDK** | 商业许可证 | Daheng相机驱动 |
-| **核心框架** | MIT许可证 | rm_utils, rm_camera_driver等 |
-| **YOLOv8检测器** | Apache 2.0许可证 | 深度学习检测模块 |
-| **第三方库** | 各自许可证 | Eigen, Ceres, Sophus等 |
-
----
-
-## 快速开始
-
-```bash
-# 克隆项目
-git clone https://github.com/tianbot/rm_armor_tracker.git
-
-# 查看详细部署指南
-cat README.md
-
-部署详细参考./doc/Implementation.md  
+- Some documents in this directory were written at different stages and may contain optimistic wording, placeholders, or outdated paths
+- If they conflict with the current code state, prefer the source tree and current mainline README files
+- The `docs/` structure mentioned in some texts does not fully match the current repository layout

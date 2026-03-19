@@ -1,21 +1,77 @@
 # rm_camera_driver
 
-FYT视觉24赛季工业相机驱动模块
+[中文](#中文) | [English](#english)
 
-## fyt::DahengCameraNode
+## 中文
 
-大恒相机驱动节点
+### 简介
 
-### 发布话题 
+`rm_camera_driver` 是项目中保留的旧版大恒工业相机 ROS2 驱动。
 
-*  `image_raw` (`sensor_msgs/msg/Image`) - 相机采集到的图像
-*  `camera_info` (`sensor_msgs/msg/CameraInfo`) - 相机内参
-  
-### 参数 
+它主要提供：
 
-* `camera_info_url` (string, default: "package://rm_bringup/config/camera_info.yaml") - camera_info.yaml文件的路径
-* `exposure_time` (int, default: 2000) - 相机曝光时间
-* `gain` (double, default: 15.0) - 相机增益
-* `resolution_width` (int, default: 1280) - 图像宽
-* `resolution_height` (int, default: 1024) - 图像高
-* `recording` (bool, default: false) - 是否录制视频 
+- `image_raw` 图像发布
+- `camera_info` 发布
+- 基础相机参数控制
+- 录像辅助能力
+
+### 当前定位
+
+- 当前主线：否
+- 保留状态：历史参考 / 备用方案
+- 适合用途：回看旧相机链路、对照参数设计、兼容旧数据流
+
+### 主要话题
+
+- 发布 `image_raw`
+- 发布 `camera_info`
+
+### 常见参数
+
+- `camera_info_url`
+- `exposure_time`
+- `gain`
+- `resolution_width`
+- `resolution_height`
+- `recording`
+
+### 说明
+
+如果当前目标是维护整机主链，请优先使用 `hik_camera`，除非你明确需要回看旧的大恒相机路径。
+
+## English
+
+### Overview
+
+`rm_camera_driver` is the legacy ROS2 Daheng industrial camera driver kept in this workspace.
+
+It mainly provides:
+
+- `image_raw` publication
+- `camera_info` publication
+- basic camera parameter control
+- optional recording support
+
+### Current Role
+
+- Active mainline: no
+- Kept as: legacy reference / backup path
+- Best used for: reviewing the older camera path, comparing parameter design, or supporting older data flows
+
+### Main Topics
+
+- publishes `image_raw`
+- publishes `camera_info`
+
+### Common Parameters
+
+- `camera_info_url`
+- `exposure_time`
+- `gain`
+- `resolution_width`
+- `resolution_height`
+- `recording`
+
+### Note
+
+If your goal is to maintain the current whole-system mainline, prefer `hik_camera` unless you explicitly need the older Daheng-based path.

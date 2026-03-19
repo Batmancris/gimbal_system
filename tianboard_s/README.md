@@ -1,30 +1,61 @@
 # tianboard_s
 
-## 简介
+[中文](#中文) | [English](#english)
 
-`tianboard_s` 是一套参考/备用板级工程代码。
+## 中文
 
-它当前的定位不是项目主线，而是：
+### 简介
 
-- 参考工程
-- 备用板级实现
-- 某些底层驱动和 USB Device 相关实现的参考来源
+`tianboard_s` 是当前工作区中的参考/备用板级工程。
 
-## 当前定位
+它当前的定位不是系统主线，而是：
+
+- 底层驱动参考工程
+- USB Device 迁移参考来源
+- 历史板级实现备份
+
+### 当前定位
 
 - 主线代码：否
-- 直接参与当前系统主链：否
-- 保留原因：参考、迁移、对照、复用部分底层实现
+- 当前整机联调入口：否
+- 保留原因：参考、迁移、对照、必要时复用局部实现
 
-## 使用建议
+### 适合在这里查什么
 
-- 不要把这里当作当前系统唯一真实来源
-- 如果你要查某些底层驱动或 USB Device 实现，可以把它当参考
-- 当前正式联调优先查看：
-  - `../Gimbal control`
-  - `../dev-branch`
+- USB Device 相关代码组织方式
+- 某些底层外设初始化和板级工程结构
+- 历史控制板实现差异
 
-## 说明
+### 不建议怎么用
 
-- 后续如果这里完全不再使用，可以继续做进一步归档或精简
-- 当前阶段建议保留，但明确标记为“参考工程”
+- 不要把这里当作当前唯一真实来源
+- 不要在这里继续主线功能开发，除非明确要做参考提取或归档整理
+
+## English
+
+### Overview
+
+`tianboard_s` is kept in the current workspace as a reference / backup board-level project.
+
+It is not the active system mainline. Its role is:
+
+- low-level driver reference
+- USB Device migration reference source
+- backup of historical board-level implementation
+
+### Current Role
+
+- Mainline code: no
+- Current full-system integration entry: no
+- Reason to keep it: reference, migration, comparison, and selective reuse
+
+### What It Is Useful For
+
+- USB Device code organization reference
+- examples of peripheral initialization and board-level project structure
+- comparing historical controller implementations
+
+### What Not To Do
+
+- do not treat this directory as the current single source of truth
+- do not continue mainline feature development here unless the goal is explicit reference extraction or archival cleanup
