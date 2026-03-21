@@ -19,11 +19,13 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(cv_bridge REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(ai_msgs REQUIRED)
 find_package(hbm_img_msgs REQUIRED)
 find_package(dnn_node REQUIRED)
 find_package(hobot_cv REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # x3|rdkultra|x86
 set(PREFIX_PATH x3)
@@ -94,6 +96,10 @@ add_executable(${PROJECT_NAME}
   src/parser.cpp
 )
 
+add_executable(${PROJECT_NAME}_visualizer
+  src/visualizer.cpp
+)
+
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   # sample.cpp pulls in large ROS2/TROS template headers; lowering its compile
   # optimization level keeps the build practical on the RDK X5.
@@ -114,9 +120,21 @@ ament_target_dependencies(
   hobot_cv
 )
 
+ament_target_dependencies(
+  ${PROJECT_NAME}_visualizer
+  rclcpp
+  cv_bridge
+  sensor_msgs
+  ai_msgs
+)
+
+target_link_libraries(${PROJECT_NAME}_visualizer
+  ${OpenCV_LIBS}
+)
+
 # Install executables
 install(
-  TARGETS ${PROJECT_NAME}
+  TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_visualizer
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

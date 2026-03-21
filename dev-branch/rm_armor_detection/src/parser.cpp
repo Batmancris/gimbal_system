@@ -34,7 +34,7 @@ struct PTQYolo8Config {
 };
 
 // 后处理参数配置
-float score_threshold_ = 0.4;           // 分数阈值，低于此值的检测框被丢弃
+float score_threshold_ = 0.25;           // 分数阈值，低于此值的检测框被丢弃
 float conf_thres_raw = -log(1 / score_threshold_ - 1); // 原始分数阈值（Sigmoid反函数）
 float nms_threshold_ = 0.5;             // 非极大值抑制阈值
 int nms_top_k_ = 5000;                  // NMS处理前保留的最大候选框数

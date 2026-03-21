@@ -7,7 +7,7 @@ rm_gimbal_bridge:
     image_height: 1024
     image_center_x: 640.0
     image_center_y: 512.0
-    min_confidence: 0.5
+    min_confidence: 0.35
     enemy_prefix: ""
     selection_mode: "closest"
     log_selected_target: true
