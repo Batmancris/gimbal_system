@@ -19,6 +19,24 @@
 #include "main.h"
 
 extern TIM_HandleTypeDef htim5;
+
+static volatile uint8_t led_debug_override_enabled = 0U;
+static volatile uint32_t led_debug_override_argb = 0U;
+static volatile uint16_t led_debug_override_blink_period_ms = 0U;
+
+void led_debug_override_set(uint32_t aRGB, uint16_t blink_period_ms)
+{
+    led_debug_override_argb = aRGB;
+    led_debug_override_blink_period_ms = blink_period_ms;
+    led_debug_override_enabled = 1U;
+}
+
+void led_debug_override_clear(void)
+{
+    led_debug_override_enabled = 0U;
+    led_debug_override_argb = 0U;
+    led_debug_override_blink_period_ms = 0U;
+}
 /**
   * @brief          aRGB show
   * @param[in]      aRGB: 0xaaRRGGBB, 'aa' is alpha, 'RR' is red, 'GG' is green, 'BB' is blue
@@ -69,6 +87,27 @@ void led_RGB_flow_task(void const * argument)
 
     while(1)
     {
+        if (led_debug_override_enabled)
+        {
+            if (led_debug_override_blink_period_ms == 0U)
+            {
+                aRGB_led_show(led_debug_override_argb);
+            }
+            else
+            {
+                uint32_t phase = HAL_GetTick() % led_debug_override_blink_period_ms;
+                if (phase < (uint32_t)(led_debug_override_blink_period_ms / 2U))
+                {
+                    aRGB_led_show(led_debug_override_argb);
+                }
+                else
+                {
+                    aRGB_led_show(0x00000000U);
+                }
+            }
+            osDelay(20);
+            continue;
+        }
 
         for(i = 0; i < RGB_FLOW_COLOR_LENGHT; i++)
         {
@@ -88,6 +127,10 @@ void led_RGB_flow_task(void const * argument)
             delta_blue /= RGB_FLOW_COLOR_CHANGE_TIME;
             for(j = 0; j < RGB_FLOW_COLOR_CHANGE_TIME; j++)
             {
+                if (led_debug_override_enabled)
+                {
+                    break;
+                }
                 alpha += delta_alpha;
                 red += delta_red;
                 green += delta_green;
@@ -96,6 +139,10 @@ void led_RGB_flow_task(void const * argument)
                 aRGB = ((uint32_t)(alpha)) << 24 | ((uint32_t)(red)) << 16 | ((uint32_t)(green)) << 8 | ((uint32_t)(blue)) << 0;
                 aRGB_led_show(aRGB);
                 osDelay(1);
+            }
+            if (led_debug_override_enabled)
+            {
+                break;
             }
         }
     }

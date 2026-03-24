@@ -69,6 +69,8 @@
 uint32_t gimbal_high_water;
 #endif
 
+static gimbal_vision_diag_t g_gimbal_vision_diag = {0};
+
 
 /**
   * @brief          "gimbal_control" valiable initialization, include pid initialization, remote control data point initialization, gimbal motors
@@ -145,7 +147,6 @@ static fp32 motor_ecd_to_angle_change(uint16_t ecd, uint16_t offset_ecd);
 static void gimbal_set_control(gimbal_control_t *set_control, const gimbal_mode_command_t *mode_command, const target_state_t *target_state);
 static void gimbal_apply_vision_control(fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state, uint8_t vision_enabled);
 static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control, fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state);
-static void gimbal_apply_usb_pitch_control(gimbal_control_t *set_control, fp32 *add_pitch_angle);
 /**
   * @brief          control loop, according to control set-point, calculate motor current, 
   *                 motor current will be sent to motor
@@ -841,6 +842,8 @@ static void gimbal_set_control(gimbal_control_t *set_control,
     {
         add_yaw_angle = mode_command->manual_yaw_add;
         add_pitch_angle = mode_command->manual_pitch_add;
+        g_gimbal_vision_diag.manual_yaw_add_mrad = (int16_t)(mode_command->manual_yaw_add * 1000.0f);
+        g_gimbal_vision_diag.manual_pitch_add_mrad = (int16_t)(mode_command->manual_pitch_add * 1000.0f);
         gimbal_apply_vision_control(&add_yaw_angle, &add_pitch_angle, target_state, mode_command->vision_enabled);
     }
 
@@ -865,7 +868,16 @@ static void gimbal_set_control(gimbal_control_t *set_control,
         gimbal_relative_angle_limit(&set_control->gimbal_yaw_motor, add_yaw_angle);
     }
 
-    gimbal_apply_usb_pitch_control(set_control, &add_pitch_angle);
+  #if (USB_TEST_CONTROL_MODE == USB_TEST_PITCH_CONTROL)
+    if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO)
+    {
+      add_pitch_angle = UsbCdcTest_GetPitchTargetRad() - set_control->gimbal_pitch_motor.absolute_angle_set;
+    }
+    else
+    {
+      add_pitch_angle = UsbCdcTest_GetPitchTargetRad() - set_control->gimbal_pitch_motor.relative_angle_set;
+    }
+  #endif
 
     if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_RAW)
     {
@@ -879,6 +891,13 @@ static void gimbal_set_control(gimbal_control_t *set_control,
     {
         gimbal_relative_angle_limit(&set_control->gimbal_pitch_motor, add_pitch_angle);
     }
+
+    g_gimbal_vision_diag.yaw_mode = (uint8_t)set_control->gimbal_yaw_motor.gimbal_motor_mode;
+    g_gimbal_vision_diag.pitch_mode = (uint8_t)set_control->gimbal_pitch_motor.gimbal_motor_mode;
+    g_gimbal_vision_diag.yaw_set_mrad = (int16_t)((set_control->gimbal_yaw_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO ?
+        set_control->gimbal_yaw_motor.absolute_angle_set : set_control->gimbal_yaw_motor.relative_angle_set) * 1000.0f);
+    g_gimbal_vision_diag.pitch_set_mrad = (int16_t)((set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO ?
+        set_control->gimbal_pitch_motor.absolute_angle_set : set_control->gimbal_pitch_motor.relative_angle_set) * 1000.0f);
 }
 
 static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
@@ -886,8 +905,37 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
                                         const target_state_t *target_state,
                                         uint8_t vision_enabled)
 {
-    fp32 error_x;
-    fp32 error_y;
+    static uint8_t last_vision_enabled = 0U;
+    static uint8_t last_target_valid = 0U;
+    static uint8_t last_seq = 0U;
+    static uint8_t stable_frames = 0U;
+    static fp32 engage_ratio = 0.0f;
+    static fp32 smoothed_error_x = 0.0f;
+    static fp32 smoothed_error_y = 0.0f;
+    uint8_t has_new_frame = 0U;
+    fp32 error_x = 0.0f;
+    fp32 error_y = 0.0f;
+    fp32 applied_yaw = 0.0f;
+    fp32 applied_pitch = 0.0f;
+
+    g_gimbal_vision_diag.control_tick = HAL_GetTick();
+    g_gimbal_vision_diag.vision_enabled = vision_enabled;
+    g_gimbal_vision_diag.target_valid = 0U;
+    g_gimbal_vision_diag.target_seq = 0U;
+    g_gimbal_vision_diag.raw_x = 0U;
+    g_gimbal_vision_diag.raw_y = 0U;
+    g_gimbal_vision_diag.error_x = 0;
+    g_gimbal_vision_diag.error_y = 0;
+    g_gimbal_vision_diag.yaw_add_mrad = 0;
+    g_gimbal_vision_diag.pitch_add_mrad = 0;
+    g_gimbal_vision_diag.manual_yaw_add_mrad = 0;
+    g_gimbal_vision_diag.manual_pitch_add_mrad = 0;
+    g_gimbal_vision_diag.yaw_mode = 0U;
+    g_gimbal_vision_diag.pitch_mode = 0U;
+    g_gimbal_vision_diag.yaw_set_mrad = 0;
+    g_gimbal_vision_diag.pitch_set_mrad = 0;
+    g_gimbal_vision_diag.yaw_given_current = 0;
+    g_gimbal_vision_diag.pitch_given_current = 0;
 
     if (add_yaw_angle == NULL || add_pitch_angle == NULL)
     {
@@ -896,11 +944,58 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
 
     if (!vision_enabled || target_state == NULL || target_state->valid == 0U)
     {
+        last_vision_enabled = vision_enabled;
+        last_target_valid = 0U;
+        stable_frames = 0U;
+        engage_ratio = 0.0f;
+        smoothed_error_x = 0.0f;
+        smoothed_error_y = 0.0f;
         return;
     }
 
+    g_gimbal_vision_diag.target_valid = 1U;
+    g_gimbal_vision_diag.target_seq = target_state->seq;
+    g_gimbal_vision_diag.raw_x = target_state->raw_x;
+    g_gimbal_vision_diag.raw_y = target_state->raw_y;
+
+    if (last_vision_enabled == 0U || last_target_valid == 0U)
+    {
+        stable_frames = 0U;
+        engage_ratio = 0.0f;
+        last_seq = target_state->seq;
+        smoothed_error_x = 0.0f;
+        smoothed_error_y = 0.0f;
+    }
+
+    if (target_state->seq != last_seq)
+    {
+        last_seq = target_state->seq;
+        has_new_frame = 1U;
+        if (stable_frames < 255U)
+        {
+            stable_frames++;
+        }
+    }
+
+    last_vision_enabled = vision_enabled;
+    last_target_valid = 1U;
+
     error_x = target_state->filtered_x - VISION_CENTER_X;
     error_y = target_state->filtered_y - VISION_CENTER_Y;
+
+    if (smoothed_error_x == 0.0f && smoothed_error_y == 0.0f)
+    {
+        smoothed_error_x = error_x;
+        smoothed_error_y = error_y;
+    }
+    else
+    {
+        smoothed_error_x += (error_x - smoothed_error_x) * VISION_ERROR_SMOOTH_ALPHA;
+        smoothed_error_y += (error_y - smoothed_error_y) * VISION_ERROR_SMOOTH_ALPHA;
+    }
+
+    error_x = smoothed_error_x;
+    error_y = smoothed_error_y;
 
     if (fabsf(error_x) < VISION_X_DEADBAND)
     {
@@ -912,8 +1007,35 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         error_y = 0.0f;
     }
 
-    *add_yaw_angle += vision_limit_increment(error_x * VISION_YAW_PIXEL_TO_RAD);
-    *add_pitch_angle -= vision_limit_increment(error_y * VISION_PITCH_PIXEL_TO_RAD);
+    g_gimbal_vision_diag.error_x = (int16_t)error_x;
+    g_gimbal_vision_diag.error_y = (int16_t)error_y;
+
+    if (!has_new_frame)
+    {
+        return;
+    }
+
+    if (engage_ratio < 0.20f)
+    {
+        engage_ratio = 0.20f;
+    }
+    else if (engage_ratio < 1.0f)
+    {
+        engage_ratio += VISION_RAMP_STEP;
+        if (engage_ratio > 1.0f)
+        {
+            engage_ratio = 1.0f;
+        }
+    }
+
+    applied_yaw = -vision_limit_increment(error_x * VISION_YAW_PIXEL_TO_RAD * engage_ratio);
+    applied_pitch = -vision_limit_increment(error_y * VISION_PITCH_PIXEL_TO_RAD * engage_ratio);
+
+    *add_yaw_angle += applied_yaw;
+    *add_pitch_angle += applied_pitch;
+
+    g_gimbal_vision_diag.yaw_add_mrad = (int16_t)(applied_yaw * 1000.0f);
+    g_gimbal_vision_diag.pitch_add_mrad = (int16_t)(applied_pitch * 1000.0f);
 }
 
 static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control,
@@ -951,33 +1073,6 @@ static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control,
     (void)add_pitch_angle;
     (void)target_state;
     return 0U;
-#endif
-}
-
-static void gimbal_apply_usb_pitch_control(gimbal_control_t *set_control, fp32 *add_pitch_angle)
-{
-#if (USB_TEST_CONTROL_MODE == USB_TEST_PITCH_CONTROL)
-    fp32 target_pitch_rad;
-
-    if (set_control == NULL || add_pitch_angle == NULL)
-    {
-        return;
-    }
-
-    target_pitch_rad = UsbCdcTest_GetPitchTargetRad();
-
-    // Only override the pitch setpoint in test mode. Yaw stays on the original path.
-    if (set_control->gimbal_pitch_motor.gimbal_motor_mode == GIMBAL_MOTOR_GYRO)
-    {
-        *add_pitch_angle = target_pitch_rad - set_control->gimbal_pitch_motor.absolute_angle_set;
-    }
-    else
-    {
-        *add_pitch_angle = target_pitch_rad - set_control->gimbal_pitch_motor.relative_angle_set;
-    }
-#else
-    (void)set_control;
-    (void)add_pitch_angle;
 #endif
 }
 
@@ -1109,6 +1204,9 @@ static void gimbal_control_loop(gimbal_control_t *control_loop)
     {
         gimbal_motor_relative_angle_control(&control_loop->gimbal_pitch_motor);
     }
+
+    g_gimbal_vision_diag.yaw_given_current = control_loop->gimbal_yaw_motor.given_current;
+    g_gimbal_vision_diag.pitch_given_current = control_loop->gimbal_pitch_motor.given_current;
 }
 
 /**
@@ -1267,4 +1365,16 @@ static void gimbal_PID_clear(gimbal_PID_t *gimbal_pid_clear)
     }
     gimbal_pid_clear->err = gimbal_pid_clear->set = gimbal_pid_clear->get = 0.0f;
     gimbal_pid_clear->out = gimbal_pid_clear->Pout = gimbal_pid_clear->Iout = gimbal_pid_clear->Dout = 0.0f;
+}
+
+void GimbalVisionDiag_Get(gimbal_vision_diag_t *diag)
+{
+    if (diag == NULL)
+    {
+        return;
+    }
+
+    __disable_irq();
+    *diag = g_gimbal_vision_diag;
+    __enable_irq();
 }

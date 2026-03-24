@@ -42,6 +42,12 @@
 - `enemy_prefix`
 - `selection_mode`
 
+### 当前联调说明
+
+- 当前工程内 `min_confidence` 已放宽，用于整链路 bring-up 时减少目标被桥接侧过早过滤
+- `enemy_prefix` 仍然是颜色前缀过滤入口；留空时表示不过滤颜色前缀
+- 该包仍然是当前整机自动瞄准联调时的 UART 主链，不受桌面可视化节点替代
+
 ### 运行
 
 ```bash
@@ -102,6 +108,12 @@ It converts `ai_msgs/msg/PerceptionTargets` into the 8-byte serial protocol curr
 - `enemy_prefix`
 - `selection_mode`
 
+### Current Integration Notes
+
+- the current in-repo `min_confidence` is relaxed for end-to-end bring-up so valid targets are less likely to be filtered too early by the bridge
+- `enemy_prefix` is still the color-prefix filter; leaving it empty means no color-prefix filtering
+- this package remains the active UART bridge for full-system auto-aim integration, even though a desktop visualizer now exists for debugging
+
 ### Run
 
 ```bash
@@ -124,5 +136,5 @@ ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py serial_port:=/dev/ttyS1
 
 ## Current Note
 
-- The recent USB CDC validation work did not modify `rm_gimbal_bridge`
+- The recent USB CDC validation work did not change the role of `rm_gimbal_bridge`
 - This package remains the current UART mainline bridge for integrated auto-aim runs

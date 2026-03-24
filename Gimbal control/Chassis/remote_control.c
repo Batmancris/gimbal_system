@@ -26,6 +26,11 @@
 extern UART_HandleTypeDef huart3;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 
+//接收原始数据，为18个字节，给了36个字节长度，防止DMA传输越界
+static uint8_t sbus_rx_buf[2][SBUS_RX_BUF_NUM];
+static RC_ctrl_t rc_ctrl_staging;
+static uint8_t rc_valid_frame_count = 0U;
+
 void RC_Init(uint8_t *rx1_buf, uint8_t *rx2_buf, uint16_t dma_buf_num)
 {
 
@@ -74,6 +79,9 @@ void RC_restart(uint16_t dma_buf_num)
     __HAL_UART_DISABLE(&huart3);
     __HAL_DMA_DISABLE(&hdma_usart3_rx);
 
+    memset(&rc_ctrl_staging, 0, sizeof(rc_ctrl_staging));
+    memset(sbus_rx_buf, 0, sizeof(sbus_rx_buf));
+    rc_valid_frame_count = 0U;
     hdma_usart3_rx.Instance->NDTR = dma_buf_num;
 
     __HAL_DMA_ENABLE(&hdma_usart3_rx);
@@ -104,14 +112,11 @@ static int16_t RC_abs(int16_t value);
   * @retval         none
   */
 static void sbus_to_rc(volatile const uint8_t *sbus_buf, RC_ctrl_t *rc_ctrl);
+static uint8_t rc_frame_is_valid(const RC_ctrl_t *rc_ctrl);
 
 //remote control data 
 //遥控器控制变量
 RC_ctrl_t rc_ctrl;
-//接收原始数据，为18个字节，给了36个字节长度，防止DMA传输越界
-static uint8_t sbus_rx_buf[2][SBUS_RX_BUF_NUM];
-
-
 /**
   * @brief          remote control init
   * @param[in]      none
@@ -124,6 +129,10 @@ static uint8_t sbus_rx_buf[2][SBUS_RX_BUF_NUM];
   */
 void remote_control_init(void)
 {
+    memset(&rc_ctrl, 0, sizeof(rc_ctrl));
+    memset(&rc_ctrl_staging, 0, sizeof(rc_ctrl_staging));
+    memset(sbus_rx_buf, 0, sizeof(sbus_rx_buf));
+    rc_valid_frame_count = 0U;
     RC_Init(sbus_rx_buf[0], sbus_rx_buf[1], SBUS_RX_BUF_NUM);
 }
 /**
@@ -172,19 +181,10 @@ uint8_t RC_data_is_error(void)
     return 0;
 
 error:
-    rc_ctrl.rc.ch[0] = 0;
-    rc_ctrl.rc.ch[1] = 0;
-    rc_ctrl.rc.ch[2] = 0;
-    rc_ctrl.rc.ch[3] = 0;
-    rc_ctrl.rc.ch[4] = 0;
-    rc_ctrl.rc.s[0] = RC_SW_DOWN;
-    rc_ctrl.rc.s[1] = RC_SW_DOWN;
-    rc_ctrl.mouse.x = 0;
-    rc_ctrl.mouse.y = 0;
-    rc_ctrl.mouse.z = 0;
-    rc_ctrl.mouse.press_l = 0;
-    rc_ctrl.mouse.press_r = 0;
-    rc_ctrl.key.v = 0;
+    // Do not overwrite the last parsed RC state on a transient bad frame.
+    // Higher-level logic already blocks control whenever RC_data_is_error()
+    // returns non-zero, so preserving the most recent parsed values prevents
+    // startup glitches from forcing the mode switches back to DOWN.
     return 1;
 }
 
@@ -236,9 +236,24 @@ void USART3_IRQHandler(void)
 
             if(this_time_rx_len == RC_FRAME_LENGTH)
             {
-                sbus_to_rc(sbus_rx_buf[0], &rc_ctrl);
-                //记录数据接收时间
-                detect_hook(DBUS_TOE);
+                sbus_to_rc(sbus_rx_buf[0], &rc_ctrl_staging);
+                if (rc_frame_is_valid(&rc_ctrl_staging))
+                {
+                    rc_ctrl = rc_ctrl_staging;
+                    if (rc_valid_frame_count < 255U)
+                    {
+                        rc_valid_frame_count++;
+                    }
+                    if (rc_valid_frame_count >= 3U)
+                    {
+                        //记录数据接收时间
+                        detect_hook(DBUS_TOE);
+                    }
+                }
+                else
+                {
+                    rc_valid_frame_count = 0U;
+                }
             }
         }
         else
@@ -267,9 +282,24 @@ void USART3_IRQHandler(void)
             if(this_time_rx_len == RC_FRAME_LENGTH)
             {
                 //处理遥控器数据
-                sbus_to_rc(sbus_rx_buf[1], &rc_ctrl);
-                //记录数据接收时间
-                detect_hook(DBUS_TOE);
+                sbus_to_rc(sbus_rx_buf[1], &rc_ctrl_staging);
+                if (rc_frame_is_valid(&rc_ctrl_staging))
+                {
+                    rc_ctrl = rc_ctrl_staging;
+                    if (rc_valid_frame_count < 255U)
+                    {
+                        rc_valid_frame_count++;
+                    }
+                    if (rc_valid_frame_count >= 3U)
+                    {
+                        //记录数据接收时间
+                        detect_hook(DBUS_TOE);
+                    }
+                }
+                else
+                {
+                    rc_valid_frame_count = 0U;
+                }
             }
         }
     }
@@ -300,6 +330,20 @@ static int16_t RC_abs(int16_t value)
   * @param[out]     rc_ctrl: 遥控器数据指
   * @retval         none
   */
+static uint8_t rc_frame_is_valid(const RC_ctrl_t *rc_ctrl)
+{
+    if (rc_ctrl == NULL)
+    {
+        return 0U;
+    }
+    if (RC_abs(rc_ctrl->rc.ch[0]) > RC_CHANNAL_ERROR_VALUE) return 0U;
+    if (RC_abs(rc_ctrl->rc.ch[1]) > RC_CHANNAL_ERROR_VALUE) return 0U;
+    if (RC_abs(rc_ctrl->rc.ch[2]) > RC_CHANNAL_ERROR_VALUE) return 0U;
+    if (RC_abs(rc_ctrl->rc.ch[3]) > RC_CHANNAL_ERROR_VALUE) return 0U;
+    if (rc_ctrl->rc.s[0] == 0 || rc_ctrl->rc.s[1] == 0) return 0U;
+    return 1U;
+}
+
 static void sbus_to_rc(volatile const uint8_t *sbus_buf, RC_ctrl_t *rc_ctrl)
 {
     if (sbus_buf == NULL || rc_ctrl == NULL)

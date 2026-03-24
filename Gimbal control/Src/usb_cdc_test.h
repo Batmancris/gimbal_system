@@ -18,6 +18,18 @@ extern "C" {
 #define USB_TEST_ACK_CMD          0x81U
 #define USB_TEST_ACK_TAIL         0x69U
 
+#define USB_VISION_DIAG_HEAD0     0xD1U
+#define USB_VISION_DIAG_HEAD1     0x5BU
+#define USB_VISION_DIAG_TAIL0     0x6BU
+#define USB_VISION_DIAG_TAIL1     0x1DU
+#define USB_VISION_DIAG_FRAME_SIZE 48U
+
+#define USB_VISION_DIAG_FLAG_VISION_ENABLED 0x01U
+#define USB_VISION_DIAG_FLAG_TARGET_VALID   0x02U
+#define USB_VISION_DIAG_FLAG_LINK_ONLINE    0x04U
+#define USB_VISION_DIAG_FLAG_RC_ERROR       0x08U
+#define USB_VISION_DIAG_FLAG_DBUS_TOE       0x10U
+
 #define USB_TEST_STATUS_OK        0x00U
 #define USB_TEST_STATUS_CRC_ERROR 0x01U
 
@@ -47,6 +59,38 @@ typedef struct
     uint8_t crc8;
     uint8_t tail;
 } usb_test_ack_frame_t;
+typedef struct
+{
+    uint8_t head0;
+    uint8_t head1;
+    uint8_t flags;
+    uint8_t seq;
+    uint16_t raw_x;
+    uint16_t raw_y;
+    int16_t error_x;
+    int16_t error_y;
+    int16_t yaw_add_mrad;
+    uint16_t parsed_frames;
+    uint16_t rx_bytes;
+    uint8_t rc_sw0;
+    uint8_t rc_sw1;
+    int16_t rc_ch0;
+    int16_t rc_ch1;
+    int16_t rc_ch2;
+    int16_t rc_ch3;
+    uint8_t behaviour;
+    int16_t manual_yaw_add_mrad;
+    int16_t manual_pitch_add_mrad;
+    uint8_t yaw_mode;
+    uint8_t pitch_mode;
+    int16_t yaw_set_mrad;
+    int16_t pitch_set_mrad;
+    int16_t yaw_given_current;
+    int16_t pitch_given_current;
+    uint8_t checksum;
+    uint8_t tail0;
+    uint8_t tail1;
+} usb_vision_diag_frame_t;
 #pragma pack(pop)
 
 typedef struct

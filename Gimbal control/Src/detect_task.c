@@ -52,6 +52,7 @@
   
 #include "detect_task.h"
 #include "cmsis_os.h"
+#include "remote_control.h"
 
 
 /**
@@ -154,7 +155,7 @@ void detect_task(void const *pvParameters)
                 error_list[i].is_lost = 0;
                 //判断是否存在数据错误
                 //judge if exist data error
-                if (error_list[i].data_is_error != NULL)
+                if (error_list[i].data_is_error)
                 {
                     error_list[i].error_exist = 1;
                 }
@@ -296,8 +297,8 @@ static void detect_init(uint32_t time)
     }
 
 
-//    error_list[DBUSTOE].dataIsErrorFun = RC_data_is_error;
-//    error_list[DBUSTOE].solveLostFun = slove_RC_lost;
-//    error_list[DBUSTOE].solveDataErrorFun = slove_data_error;
+    error_list[DBUS_TOE].data_is_error_fun = RC_data_is_error;
+    error_list[DBUS_TOE].solve_lost_fun = slove_RC_lost;
+    error_list[DBUS_TOE].solve_data_error_fun = slove_data_error;
 
 }

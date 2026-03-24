@@ -32,7 +32,11 @@
 #include "INS_task.h"
 #include "gimbal_task.h"
 #include "coordinate.h"
+#include "target_state.h"
+#include "vision_input.h"
 #include "usb_cdc_test.h"
+#include "remote_control.h"
+#include "gimbal_behaviour.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +66,9 @@ osThreadId testHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+static uint8_t vision_diag_checksum(const usb_vision_diag_frame_t *frame);
+static void vision_diag_tick(uint32_t tick_ms);
+static void cold_boot_led_diag_tick(uint32_t tick_ms);
 
 /* USER CODE END FunctionPrototypes */
 
@@ -165,8 +172,11 @@ __weak void test_task(void const * argument)
   
   for(;;)
   {
+    uint32_t tick_ms = HAL_GetTick();
     const TargetPosition *pos = get_target_position();
-    UsbCdcTest_HeartbeatTick(HAL_GetTick());
+    UsbCdcTest_HeartbeatTick(tick_ms);
+    vision_diag_tick(tick_ms);
+    cold_boot_led_diag_tick(tick_ms);
     if(pos->data_ready==1){
 #if VISION_DEBUG_PRINT
       usart_printf("Value1: 0x%04X (%d), Value2: 0x%04X (%d)\r\n", pos->object_x, pos->object_x, pos->object_y, pos->object_y);
@@ -179,7 +189,238 @@ __weak void test_task(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+static uint8_t vision_diag_checksum(const usb_vision_diag_frame_t *frame)
+{
+  const uint8_t *bytes = (const uint8_t *)frame;
+  uint8_t checksum = 0U;
+  uint16_t i;
+
+  if (frame == NULL)
+  {
+    return 0U;
+  }
+
+  for (i = 2U; i <= 44U; i++)
+  {
+    checksum ^= bytes[i];
+  }
+
+  return checksum;
+}
+
+static void vision_diag_tick(uint32_t tick_ms)
+{
+  static uint32_t last_diag_tick = 0U;
+  usb_vision_diag_frame_t frame;
+  gimbal_vision_diag_t diag;
+  const vision_input_status_t *vision_status;
+
+  if (last_diag_tick != 0U && (tick_ms - last_diag_tick) < 100U)
+  {
+    return;
+  }
+
+  if (UsbCdcTest_GetTxState() != 0)
+  {
+    return;
+  }
+
+  last_diag_tick = tick_ms;
+  GimbalVisionDiag_Get(&diag);
+  vision_status = VisionInput_GetStatus();
+
+  frame.head0 = USB_VISION_DIAG_HEAD0;
+  frame.head1 = USB_VISION_DIAG_HEAD1;
+  frame.flags = 0U;
+  if (diag.vision_enabled)
+  {
+    frame.flags |= USB_VISION_DIAG_FLAG_VISION_ENABLED;
+  }
+  if (diag.target_valid)
+  {
+    frame.flags |= USB_VISION_DIAG_FLAG_TARGET_VALID;
+  }
+  if (vision_status != NULL && vision_status->link_online)
+  {
+    frame.flags |= USB_VISION_DIAG_FLAG_LINK_ONLINE;
+  }
+  if (RC_data_is_error())
+  {
+    frame.flags |= USB_VISION_DIAG_FLAG_RC_ERROR;
+  }
+  if (toe_is_error(DBUS_TOE))
+  {
+    frame.flags |= USB_VISION_DIAG_FLAG_DBUS_TOE;
+  }
+  frame.seq = diag.target_seq;
+  frame.raw_x = diag.raw_x;
+  frame.raw_y = diag.raw_y;
+  frame.error_x = diag.error_x;
+  frame.error_y = diag.error_y;
+  frame.yaw_add_mrad = diag.yaw_add_mrad;
+  frame.parsed_frames = (uint16_t)(vision_status ? (vision_status->parsed_frames & 0xFFFFU) : 0U);
+  frame.rx_bytes = (uint16_t)(vision_status ? (vision_status->rx_bytes & 0xFFFFU) : 0U);
+  {
+    const RC_ctrl_t *rc = get_remote_control_point();
+    frame.rc_sw0 = (uint8_t)(rc ? rc->rc.s[0] : 0U);
+    frame.rc_sw1 = (uint8_t)(rc ? rc->rc.s[1] : 0U);
+    frame.rc_ch0 = (int16_t)(rc ? rc->rc.ch[0] : 0);
+    frame.rc_ch1 = (int16_t)(rc ? rc->rc.ch[1] : 0);
+    frame.rc_ch2 = (int16_t)(rc ? rc->rc.ch[2] : 0);
+    frame.rc_ch3 = (int16_t)(rc ? rc->rc.ch[3] : 0);
+  }
+  frame.behaviour = (uint8_t)gimbal_behaviour_get();
+  frame.manual_yaw_add_mrad = diag.manual_yaw_add_mrad;
+  frame.manual_pitch_add_mrad = diag.manual_pitch_add_mrad;
+  frame.yaw_mode = diag.yaw_mode;
+  frame.pitch_mode = diag.pitch_mode;
+  frame.yaw_set_mrad = diag.yaw_set_mrad;
+  frame.pitch_set_mrad = diag.pitch_set_mrad;
+  frame.yaw_given_current = diag.yaw_given_current;
+  frame.pitch_given_current = diag.pitch_given_current;
+  frame.checksum = 0U;
+  frame.checksum = vision_diag_checksum(&frame);
+  frame.tail0 = USB_VISION_DIAG_TAIL0;
+  frame.tail1 = USB_VISION_DIAG_TAIL1;
+
+  (void)UsbCdcTest_SendBytes((const uint8_t *)&frame, (uint16_t)sizeof(frame));
+}
+
+
+static void cold_boot_led_diag_tick(uint32_t tick_ms)
+{
+  static uint32_t last_parsed_frames = 0U;
+  static uint32_t last_parsed_tick = 0U;
+  const RC_ctrl_t *rc = get_remote_control_point();
+  const vision_input_status_t *vision_status = VisionInput_GetStatus();
+  gimbal_vision_diag_t diag;
+  int8_t mode_sw = 0;
+  uint16_t manual_active = 0U;
+  uint16_t current_active = 0U;
+  uint8_t upper_frame_recent = 0U;
+  int16_t rc_yaw = 0;
+  int16_t rc_pitch = 0;
+
+  GimbalVisionDiag_Get(&diag);
+  if (vision_status != NULL)
+  {
+    if (vision_status->parsed_frames != last_parsed_frames)
+    {
+      last_parsed_frames = vision_status->parsed_frames;
+      last_parsed_tick = tick_ms;
+    }
+    if ((tick_ms - last_parsed_tick) < 500U && vision_status->parsed_frames > 0U)
+    {
+      upper_frame_recent = 1U;
+    }
+  }
+  if (rc != NULL)
+  {
+    mode_sw = rc->rc.s[GIMBAL_MODE_CHANNEL];
+    rc_yaw = rc->rc.ch[YAW_CHANNEL];
+    rc_pitch = rc->rc.ch[PITCH_CHANNEL];
+  }
+
+  if (toe_is_error(DBUS_TOE))
+  {
+    led_debug_override_set(0xFFFF0000U, 200U);
+    return;
+  }
+
+  if (RC_data_is_error())
+  {
+    led_debug_override_set(0xFFFFA000U, 250U);
+    return;
+  }
+
+  if (toe_is_error(YAW_GIMBAL_MOTOR_TOE) || toe_is_error(PITCH_GIMBAL_MOTOR_TOE))
+  {
+    led_debug_override_set(0xFFFFFF00U, 120U);
+    return;
+  }
+
+  {
+    const error_t *errors = get_error_list_point();
+    uint32_t now = xTaskGetTickCount();
+    if (errors == NULL ||
+        (now - errors[YAW_GIMBAL_MOTOR_TOE].work_time) < GIMBAL_MOTOR_READY_STABLE_MS ||
+        (now - errors[PITCH_GIMBAL_MOTOR_TOE].work_time) < GIMBAL_MOTOR_READY_STABLE_MS)
+    {
+      led_debug_override_set(0xFFFFFF00U, 0U);
+      return;
+    }
+  }
+
+  manual_active = (uint16_t)(((rc_yaw > RC_DEADBAND) || (rc_yaw < -RC_DEADBAND) ||
+                               (rc_pitch > RC_DEADBAND) || (rc_pitch < -RC_DEADBAND)) ? 1U : 0U);
+  current_active = (uint16_t)(((diag.yaw_given_current > 300) || (diag.yaw_given_current < -300) ||
+                               (diag.pitch_given_current > 300) || (diag.pitch_given_current < -300)) ? 1U : 0U);
+
+  if (switch_is_down(mode_sw))
+  {
+    led_debug_override_set(0xFF0000FFU, 0U);
+    return;
+  }
+
+  if (switch_is_mid(mode_sw))
+  {
+    if (gimbal_behaviour_get() != GIMBAL_RELATIVE_ANGLE)
+    {
+      led_debug_override_set(0xFFFF00FFU, 200U);
+      return;
+    }
+
+    if (manual_active && !current_active)
+    {
+      led_debug_override_set(0xFFFFFFFFU, 80U);
+      return;
+    }
+
+    if (manual_active && current_active)
+    {
+      led_debug_override_set(0xFF00FF00U, 80U);
+      return;
+    }
+
+    led_debug_override_set(0xFF00FF00U, 0U);
+    return;
+  }
+
+  if (switch_is_up(mode_sw))
+  {
+    if (diag.target_valid && current_active)
+    {
+      led_debug_override_set(0xFF00FFFFU, 80U);
+      return;
+    }
+
+    if (diag.target_valid)
+    {
+      led_debug_override_set(0xFF00FFFFU, 0U);
+      return;
+    }
+
+    if (upper_frame_recent)
+    {
+      led_debug_override_set(0xFFA0FFFFU, 0U);
+      return;
+    }
+
+    if (diag.vision_enabled)
+    {
+      led_debug_override_set(0xFF00FFFFU, 250U);
+    }
+    else
+    {
+      led_debug_override_set(0xFFFFFFFFU, 150U);
+    }
+    return;
+  }
+
+  led_debug_override_set(0xFFFFA000U, 100U);
+}
 
 /* USER CODE END Application */
+
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

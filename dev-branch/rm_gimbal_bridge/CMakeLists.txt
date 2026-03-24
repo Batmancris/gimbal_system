@@ -20,14 +20,24 @@ if(ai_msgs_FOUND)
     src/serial_bridge_node.cpp
   )
 
+  add_executable(rm_gimbal_feedback_node
+    src/target_feedback_node.cpp
+  )
+
   target_include_directories(${PROJECT_NAME}_node PUBLIC include)
+  target_include_directories(rm_gimbal_feedback_node PUBLIC include)
 
   ament_target_dependencies(${PROJECT_NAME}_node
     rclcpp
     ai_msgs
   )
 
-  list(APPEND rm_gimbal_bridge_targets ${PROJECT_NAME}_node)
+  ament_target_dependencies(rm_gimbal_feedback_node
+    rclcpp
+    ai_msgs
+  )
+
+  list(APPEND rm_gimbal_bridge_targets ${PROJECT_NAME}_node rm_gimbal_feedback_node)
 else()
   message(WARNING "ai_msgs not found, skipping ${PROJECT_NAME}_node and building usb_cdc_ping_test only")
 endif()

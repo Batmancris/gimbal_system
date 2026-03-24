@@ -7,7 +7,7 @@
 ### 简介
 
 `hik_camera` 是当前上位机主线使用的海康工业相机 ROS2 驱动。
-
+<!--  -->
 它负责：
 
 - 枚举并打开海康工业相机
@@ -35,6 +35,13 @@
 - `gain`
 - `camera_info_url`
 - `use_sensor_data_qos`
+
+### 当前联调说明
+
+- 当前 RM 装甲板主线更偏向较暗、高对比度画面，以突出灯条
+- 目前项目内联调使用的曝光参数比默认更高，用于在现有环境下稳定看到目标灯条
+- 某些海康相机型号或 SDK 组合下，`gain` 可能不会按配置成功写入，需要以实际启动日志为准
+- `image_raw` 会被桌面可视化节点直接订阅，用于叠加检测框显示
 
 ### 运行
 
@@ -79,6 +86,13 @@ It is responsible for:
 - `gain`
 - `camera_info_url`
 - `use_sensor_data_qos`
+
+### Current Integration Notes
+
+- The current RM armor-detection workflow intentionally favors darker, higher-contrast images so the light bars stand out more clearly
+- The present validation setup uses a higher exposure than the earlier default to make the target lighting easier to inspect in the current environment
+- On some Hikrobot camera and SDK combinations, the configured `gain` may not be accepted at runtime, so the startup log is the source of truth
+- `image_raw` is also consumed by the desktop visualizer for live overlay rendering
 
 ### Run
 
