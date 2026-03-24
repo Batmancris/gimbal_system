@@ -46,7 +46,7 @@ gimbal_system/
 #### `dev-branch`
 
 - 当前唯一可信的上位机主线
-- 负责相机驱动、视觉检测、串口桥接、部署脚本
+- 负责相机驱动、视觉检测、串口桥接、桌面可视化、部署脚本
 - 当前建议维护路径：`hik_camera + rm_armor_detection + rm_gimbal_bridge`
 
 #### `tianboard_s`
@@ -114,7 +114,7 @@ gimbal_system/
 #### `dev-branch`
 
 - The only trusted upper-level workspace mainline
-- Owns camera drivers, visual detection, serial bridge, and deployment scripts
+- Owns camera drivers, visual detection, serial bridge, desktop visualization, and deployment scripts
 - Recommended maintenance path: `hik_camera + rm_armor_detection + rm_gimbal_bridge`
 
 #### `tianboard_s`

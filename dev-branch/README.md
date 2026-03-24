@@ -14,6 +14,7 @@
 - 图像发布与共享内存链路
 - 装甲板检测
 - 检测结果到下位机协议的桥接
+- RDK-X5 桌面实时可视化
 - 部署、自启动、联调脚本
 
 ### 当前推荐主线
@@ -28,10 +29,19 @@ hik_camera
   -> Gimbal control
 ```
 
+当前还保留一条板端桌面可视化旁路，用于直接观察推理结果：
+
+```text
+image_raw + /dnn_node_sample
+  -> rm_armor_detection_visualizer
+  -> X11 window on RDK-X5
+```
+
 其中：
 
 - `hik_camera` 是当前相机主线
 - `rm_armor_detection` 是当前 RDK-X5 / BPU 检测主线
+- `rm_armor_detection_visualizer` 是当前实时检测框可视化窗口
 - `rm_gimbal_bridge` 是当前上下位机桥接主线
 
 ### 当前目录定位
@@ -39,7 +49,7 @@ hik_camera
 - `hik_camera/`
   当前海康工业相机主线驱动
 - `rm_armor_detection/`
-  当前 YOLOv8 装甲板检测主线
+  当前 YOLOv8 装甲板检测主线，同时包含桌面可视化节点
 - `rm_gimbal_bridge/`
   当前串口桥接主线，同时保留 USB CDC 诊断测试程序
 - `rm_interfaces/`
@@ -61,10 +71,19 @@ hik_camera
 
 ### 当前进度
 
-- 上位机图像采集链已具备主线
-- YOLOv8 检测链已具备可运行实现
+- 海康相机实时采集链已跑通
+- YOLOv8 检测链已在 RDK-X5 上稳定运行
 - 串口桥接已可将检测结果编码为当前下位机协议
+- 已补充桌面实时可视化窗口，可直接显示检测框、类别和置信度
 - 一键启动链已经有可维护入口
+
+### 当前联调说明
+
+- 当前 RM 装甲板识别参数倾向于较暗、高对比度画面，以突出灯条
+- 当前主线联调时使用了较高曝光和较宽松的检测阈值，便于确认整链路是否工作
+- `scripts/start_autoaim_tmux.sh` 负责当前板端三节点启动：`hik_camera + rm_armor_detection + rm_armor_detection_visualizer`
+- `scripts/start_rm_bridge_tmux.sh` 负责桥接节点单独拉起：`rm_gimbal_bridge`
+- 因此当前“板端画面观察”和“桥接到下位机”已经拆成两组 tmux / service 入口，便于分别排查
 
 ### 当前已知边界
 
@@ -84,6 +103,7 @@ It is responsible for:
 - image publication and shared-memory transport
 - armor detection
 - conversion of detection results into controller-facing protocol data
+- live desktop visualization on the RDK-X5
 - deployment, autostart, and integration scripts
 
 ### Recommended Mainline
@@ -98,10 +118,19 @@ hik_camera
   -> Gimbal control
 ```
 
+The workspace also keeps a board-side desktop visualization sidecar for directly inspecting detector output:
+
+```text
+image_raw + /dnn_node_sample
+  -> rm_armor_detection_visualizer
+  -> X11 window on RDK-X5
+```
+
 In this path:
 
 - `hik_camera` is the active camera mainline
 - `rm_armor_detection` is the active RDK-X5 / BPU detector mainline
+- `rm_armor_detection_visualizer` is the live on-device overlay window
 - `rm_gimbal_bridge` is the active upper-to-lower bridge mainline
 
 ### Directory Roles
@@ -109,7 +138,7 @@ In this path:
 - `hik_camera/`
   Current Hikrobot industrial camera mainline driver
 - `rm_armor_detection/`
-  Current YOLOv8 armor detection mainline
+  Current YOLOv8 armor detection mainline, including the live visualizer node
 - `rm_gimbal_bridge/`
   Current serial bridge mainline, with USB CDC diagnostic utilities preserved
 - `rm_interfaces/`
@@ -131,10 +160,19 @@ The following directories are kept, but they are not the current default runtime
 
 ### Current Progress
 
-- A workable image acquisition mainline exists
-- A runnable YOLOv8 detection path exists
+- The Hikrobot camera acquisition path is running on the RDK-X5
+- The YOLOv8 detection path is running on the BPU
 - The serial bridge can already encode detections into the current lower-level protocol
+- A live desktop visualizer now shows boxes, classes, and confidence directly on the RDK-X5 screen
 - A maintainable launch/deployment path is present
+
+### Current Integration Notes
+
+- The present RM armor-detection tuning intentionally favors darker, higher-contrast images so the light bars stand out more clearly
+- The current validation setup uses a higher exposure and looser detection thresholds to confirm the whole chain end-to-end
+- `scripts/start_autoaim_tmux.sh` starts the current board-side three-node path: `hik_camera + rm_armor_detection + rm_armor_detection_visualizer`
+- `scripts/start_rm_bridge_tmux.sh` starts the bridge node separately: `rm_gimbal_bridge`
+- This means board-side visual inspection and lower-level bridge bring-up currently use two separate tmux / service entry points for easier debugging
 
 ### Current Boundaries
 
