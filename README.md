@@ -4,138 +4,224 @@
 
 ## 中文
 
-### 项目概览
+### 仓库定位
 
-本仓库于 2026-03-19 整理为单一 monorepo，用来承载当前机器人云台系统相关代码。
+这是当前云台系统的总仓库（monorepo），用于统一管理上下位机主线、参考板级工程以及联调脚本。
 
-当前工作区包含三条主要代码线：
+仓库在 2026-03-19 完成归并后，默认应把这里视为当前项目的总入口；如果历史分仓文档和这里冲突，以当前仓库内主线代码和主线 README 为准。
 
-- `Gimbal control`：STM32 下位机主线工程
-- `dev-branch`：ROS2 上位机主线工作区
-- `tianboard_s`：参考/备用板级工程
+### 当前推荐主线
 
-### 当前主线状态
+当前建议维护、联调和继续演进的正式路径是：
 
-当前系统已经具备一条可以继续联调和维护的主路径：
+```text
+hik_camera
+  -> rm_armor_detection
+  -> rm_gimbal_bridge
+  -> UART
+  -> Gimbal control
+```
 
-1. `hik_camera` 采集海康工业相机图像
-2. `rm_armor_detection` 在 RDK-X5 / TROS 环境下做 YOLOv8 装甲板检测
-3. `rm_gimbal_bridge` 将检测结果转换为下位机当前使用的串口协议
-4. `Gimbal control` 通过 UART 接收视觉输入并驱动云台控制链
+说明：
 
-USB CDC 目前已经在下位机侧完成基础双向通信诊断，但还没有完全取代 UART 成为正式主链。
+- 上位机主线在 `dev-branch/`
+- 下位机主线在 `Gimbal control/`
+- 当前整机稳定通信主链仍然是 `UART`
+- `USB CDC` 已完成基础双向通信与最小 pitch 控制验证，但还没有完全替代 UART 成为默认整机主链
 
 ### 仓库结构
 
 ```text
 gimbal_system/
-├── Gimbal control/   # STM32 firmware mainline
-├── dev-branch/       # ROS2 vision and bridge workspace
-└── tianboard_s/      # Reference / backup board-level project
+├── README.md                 # 本文件，总仓库入口
+├── Gimbal control/           # STM32 下位机主线工程
+├── dev-branch/               # ROS2 / TROS / RDK-X5 上位机主线工作区
+├── tianboard_s/              # 参考/备用板级工程
+├── tools/                    # 辅助工具与脚本
+└── _git_migration_backup/    # monorepo 整理时保留的迁移备份
 ```
 
-### 目录说明
+### 目录导航
 
-#### `Gimbal control`
+#### `Gimbal control/`
 
-- 当前唯一可信的下位机主线
-- 负责云台、电机、IMU、视觉输入、FreeRTOS 任务组织
-- 当前稳定通信主链：`UART`
-- 当前实验迁移方向：`USB CDC`
+当前唯一可信的下位机主线工程。
 
-#### `dev-branch`
+负责内容：
 
-- 当前唯一可信的上位机主线
-- 负责相机驱动、视觉检测、串口桥接、桌面可视化、部署脚本
-- 当前建议维护路径：`hik_camera + rm_armor_detection + rm_gimbal_bridge`
+- 云台与电机控制
+- IMU 与姿态解算
+- CAN / DBUS / 视觉输入
+- FreeRTOS 任务组织
+- UART 主链与 USB CDC 迁移验证
 
-#### `tianboard_s`
+建议入口：[`Gimbal control/README.md`](./Gimbal%20control/README.md)
 
-- 不是当前比赛/联调主线
-- 主要用于底层驱动、USB Device、历史实现的参考与对照
+#### `dev-branch/`
 
-### 当前文档策略
+当前唯一可信的上位机主线工作区，主要面向 ROS2 Humble / TROS / RDK-X5。
 
-本仓库 README 以“当前真实状态”为准，不再默认沿用旧分仓时代的描述。
+负责内容：
 
-如果文档与代码冲突，请优先相信：
+- 海康工业相机接入
+- YOLOv8 装甲板检测
+- 检测结果桥接到下位机协议
+- 板端实时可视化
+- 部署、自启动与联调脚本
 
-1. 当前源码入口与 launch 文件
-2. 当前主线 README
-3. 历史 handover / 旧仓库文档
+建议入口：[`dev-branch/README.md`](./dev-branch/README.md)
+
+#### `tianboard_s/`
+
+参考/备用板级工程，不是当前整机联调主线。
+
+更适合用于：
+
+- 查阅历史板级实现
+- 对照 USB Device 组织方式
+- 迁移时复用局部底层实现
+
+建议入口：[`tianboard_s/README.md`](./tianboard_s/README.md)
+
+### 当前常用入口
+
+如果你是第一次进入这个总仓库，建议按下面顺序看：
+
+1. 本 README：确认当前真实主线和仓库边界
+2. [`dev-branch/README.md`](./dev-branch/README.md)：确认上位机运行链、节点和脚本入口
+3. [`dev-branch/scripts/README.md`](./dev-branch/scripts/README.md)：确认 tmux / service / 部署脚本
+4. [`Gimbal control/README.md`](./Gimbal%20control/README.md)：确认下位机通信主链和 USB CDC 迁移状态
+
+### 当前状态结论
+
+- `Gimbal control` 是当前下位机正式主线
+- `dev-branch` 是当前上位机正式主线
+- `tianboard_s` 仅作参考，不应继续承担主线开发
+- 上下位机当前推荐联调组合是：`hik_camera + rm_armor_detection + rm_gimbal_bridge + Gimbal control`
+- 当前板端画面观察和桥接下位机已拆成两组脚本 / service 入口，便于分别排障
+
+### 文档使用原则
+
+如果文档与代码状态不一致，建议按下面顺序判断：
+
+1. 当前源码入口、launch、脚本与 service 文件
+2. 各主线目录内 README
+3. 交接文档、旧仓库文档、历史说明
 
 ### 当前已知边界
 
-- monorepo 已建立，但正式长期分支策略还没有完全收口
-- USB CDC 已验证传输层，但尚未完成整机主链切换
-- 一些历史/实验目录仍被保留，用于参考，不等于当前运行入口
+- monorepo 已建立，但历史目录和迁移痕迹仍然保留
+- USB CDC 目前属于迁移验证路径，不是默认整机运行路径
+- 一些目录保留是为了参考、对照和回溯，不代表当前应从这些目录继续开发
 
 ## English
 
-### Overview
+### Repository Role
 
-This repository was consolidated into a single monorepo on 2026-03-19 and now serves as the current source tree for the gimbal system workspace.
+This is the current monorepo for the gimbal system. It keeps the active upper-level workspace, the active lower-level firmware, reference board-level code, and integration scripts in one place.
 
-It contains three primary code areas:
+Since the repository consolidation on 2026-03-19, this workspace should be treated as the main project entry. If older split-repository documentation conflicts with the current codebase, trust the current mainline code and the README files inside this monorepo.
 
-- `Gimbal control`: STM32 lower-level firmware mainline
-- `dev-branch`: ROS2 upper-level vision and bridge workspace
-- `tianboard_s`: reference / backup board-level project
+### Recommended Mainline
 
-### Current Mainline Status
+The current recommended maintenance and integration path is:
 
-The project now has a practical end-to-end development path:
+```text
+hik_camera
+  -> rm_armor_detection
+  -> rm_gimbal_bridge
+  -> UART
+  -> Gimbal control
+```
 
-1. `hik_camera` captures images from the Hikrobot industrial camera
-2. `rm_armor_detection` runs YOLOv8-based armor detection on RDK-X5 / TROS
-3. `rm_gimbal_bridge` converts detections into the serial protocol used by the controller
-4. `Gimbal control` receives visual input over UART and drives the gimbal control chain
+Notes:
 
-USB CDC has already been validated as a bidirectional transport on the firmware side, but it has not yet replaced UART as the formal system mainline.
+- the active upper-level mainline is in `dev-branch/`
+- the active lower-level mainline is in `Gimbal control/`
+- `UART` is still the formal whole-system communication path
+- `USB CDC` has passed transport-level and minimal pitch-control validation, but it has not fully replaced UART as the default system mainline
 
 ### Repository Layout
 
 ```text
 gimbal_system/
-├── Gimbal control/   # STM32 firmware mainline
-├── dev-branch/       # ROS2 vision and bridge workspace
-└── tianboard_s/      # Reference / backup board-level project
+├── README.md                 # this file, monorepo entry
+├── Gimbal control/           # STM32 lower-level firmware mainline
+├── dev-branch/               # ROS2 / TROS / RDK-X5 upper-level workspace
+├── tianboard_s/              # reference / backup board-level project
+├── tools/                    # helper tools and scripts
+└── _git_migration_backup/    # migration backup kept from monorepo consolidation
 ```
 
-### Directory Roles
+### Directory Guide
 
-#### `Gimbal control`
+#### `Gimbal control/`
 
-- The only trusted lower-level firmware mainline
-- Owns gimbal, motor, IMU, vision input, and FreeRTOS task organization
-- Current validated communication path: `UART`
-- Current migration direction: `USB CDC`
+The only trusted lower-level firmware mainline.
 
-#### `dev-branch`
+Owns:
 
-- The only trusted upper-level workspace mainline
-- Owns camera drivers, visual detection, serial bridge, desktop visualization, and deployment scripts
-- Recommended maintenance path: `hik_camera + rm_armor_detection + rm_gimbal_bridge`
+- gimbal and motor control
+- IMU and attitude estimation
+- CAN / DBUS / vision input
+- FreeRTOS task organization
+- UART mainline and USB CDC migration validation
 
-#### `tianboard_s`
+Entry: [`Gimbal control/README.md`](./Gimbal%20control/README.md)
 
-- Not the current competition / integration mainline
-- Kept as a reference source for low-level drivers, USB Device code, and historical implementations
+#### `dev-branch/`
+
+The only trusted upper-level workspace mainline, primarily targeting ROS2 Humble, TROS, and RDK-X5.
+
+Owns:
+
+- Hikrobot industrial camera integration
+- YOLOv8 armor detection
+- detection-to-controller bridge logic
+- on-device live visualization
+- deployment, autostart, and integration scripts
+
+Entry: [`dev-branch/README.md`](./dev-branch/README.md)
+
+#### `tianboard_s/`
+
+A reference / backup board-level project, not the active full-system mainline.
+
+It is mainly useful for:
+
+- checking historical board-level implementations
+- comparing USB Device organization
+- selectively reusing low-level implementation details during migration
+
+Entry: [`tianboard_s/README.md`](./tianboard_s/README.md)
+
+### Recommended Reading Order
+
+If you are entering this monorepo for the first time, read in this order:
+
+1. this README for the actual current mainline and repository boundaries
+2. [`dev-branch/README.md`](./dev-branch/README.md) for the active upper-level runtime path
+3. [`dev-branch/scripts/README.md`](./dev-branch/scripts/README.md) for tmux / service / deployment entry points
+4. [`Gimbal control/README.md`](./Gimbal%20control/README.md) for lower-level communication status and USB CDC migration notes
+
+### Current Project Conclusions
+
+- `Gimbal control` is the formal lower-level mainline
+- `dev-branch` is the formal upper-level mainline
+- `tianboard_s` is reference-only and should not continue mainline feature work
+- the recommended integration stack is `hik_camera + rm_armor_detection + rm_gimbal_bridge + Gimbal control`
+- board-side visualization and lower-level bridge bring-up are intentionally split into separate script/service entry points for easier debugging
 
 ### Documentation Policy
 
-The README files in this monorepo are intended to describe the current real project state instead of the old split-repository workflow.
+If documentation and code disagree, prefer the following in order:
 
-If documentation conflicts with code, trust the following in order:
-
-1. Current source entry points and launch files
-2. Current mainline README files
-3. Historical handover and legacy repository documents
+1. current source entry points, launch files, scripts, and service files
+2. README files in the active mainline directories
+3. handover notes, legacy repository docs, and historical writeups
 
 ### Known Boundaries
 
-- The monorepo exists, but the long-term branch policy is not fully settled yet
-- USB CDC transport is verified, but the whole-system migration is not complete
-- Some historical and experimental directories are intentionally retained as references, not as the default runtime path
-- The minimal USB CDC upper-to-lower control validation path has also been verified
-- That USB CDC path remains optional, and the default control chain still falls back to remote/UART behavior
+- the monorepo is established, but historical directories and migration traces are intentionally retained
+- USB CDC is still a migration-validation path rather than the default whole-system runtime path
+- some directories are kept for reference, comparison, or rollback context and are not the places to continue current mainline development
