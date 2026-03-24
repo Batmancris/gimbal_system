@@ -32,6 +32,8 @@
   */
 void aRGB_led_show(uint32_t aRGB);
 extern void led_RGB_flow_task(void const * argument);
+void led_debug_override_set(uint32_t aRGB, uint16_t blink_period_ms);
+void led_debug_override_clear(void);
 
 #endif
 

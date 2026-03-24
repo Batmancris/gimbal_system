@@ -83,6 +83,7 @@
 #include "arm_math.h"
 //#include "bsp_buzzer.h"
 #include "detect_task.h"
+#include "cmsis_os.h"
 
 #include "user_lib.h"
 
@@ -92,6 +93,49 @@
 #define gimbal_warn_buzzer_off() buzzer_off()
 
 #define int_abs(x) ((x) > 0 ? (x) : (-x))
+
+static uint8_t gimbal_rc_switch_valid(int8_t sw)
+{
+    return (uint8_t)(switch_is_down(sw) || switch_is_mid(sw) || switch_is_up(sw));
+}
+
+static gimbal_behaviour_e gimbal_rc_fallback_behaviour(void)
+{
+#if RC_COMPAT_ENABLE && RC_COMPAT_FALLBACK_ABSOLUTE
+    return GIMBAL_ABSOLUTE_ANGLE;
+#else
+    return GIMBAL_RELATIVE_ANGLE;
+#endif
+}
+
+static uint8_t gimbal_motor_chain_ready(void)
+{
+    const error_t *errors = get_error_list_point();
+    uint32_t now = xTaskGetTickCount();
+
+    if (errors == NULL)
+    {
+        return 0U;
+    }
+
+    if (toe_is_error(YAW_GIMBAL_MOTOR_TOE) || toe_is_error(PITCH_GIMBAL_MOTOR_TOE))
+    {
+        return 0U;
+    }
+
+    if ((now - errors[YAW_GIMBAL_MOTOR_TOE].work_time) < GIMBAL_MOTOR_READY_STABLE_MS)
+    {
+        return 0U;
+    }
+
+    if ((now - errors[PITCH_GIMBAL_MOTOR_TOE].work_time) < GIMBAL_MOTOR_READY_STABLE_MS)
+    {
+        return 0U;
+    }
+
+    return 1U;
+}
+
 /**
   * @brief          remote control dealline solve,because the value of rocker is not zero in middle place,
   * @param          input:the raw channel value 
@@ -486,34 +530,45 @@ static void gimbal_behavour_set(gimbal_control_t *gimbal_mode_set)
     }
 
     //开关控制 云台状态
-    if (switch_is_down(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
+    if (gimbal_rc_switch_valid(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
     {
-        gimbal_behaviour = GIMBAL_ZERO_FORCE;
-    }
-    else if (switch_is_mid(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
-    {
-        gimbal_behaviour = GIMBAL_RELATIVE_ANGLE;
-    }
-    else if (switch_is_up(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
-    {
-        gimbal_behaviour = GIMBAL_ABSOLUTE_ANGLE;
-    }
-
-    if( toe_is_error(DBUS_TOE))
-    {
-        gimbal_behaviour = GIMBAL_ZERO_FORCE;
-    }
-
-    //enter init mode
-    //判断进入init状态机
-    {
-        static gimbal_behaviour_e last_gimbal_behaviour = GIMBAL_ZERO_FORCE;
-        if (last_gimbal_behaviour == GIMBAL_ZERO_FORCE && gimbal_behaviour != GIMBAL_ZERO_FORCE)
+        if (switch_is_down(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
         {
-            gimbal_behaviour = GIMBAL_INIT;
+            gimbal_behaviour = GIMBAL_ZERO_FORCE;
         }
-        last_gimbal_behaviour = gimbal_behaviour;
+        else if (switch_is_mid(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
+        {
+            gimbal_behaviour = GIMBAL_RELATIVE_ANGLE;
+        }
+        else if (switch_is_up(gimbal_mode_set->gimbal_rc_ctrl->rc.s[GIMBAL_MODE_CHANNEL]))
+        {
+            // Keep visual mode on the relative-angle path so switching into vision
+            // does not inject absolute-angle behaviour before a target is accepted.
+            gimbal_behaviour = GIMBAL_RELATIVE_ANGLE;
+        }
     }
+#if RC_COMPAT_ENABLE
+    else if (!RC_data_is_error() && !toe_is_error(DBUS_TOE))
+    {
+        gimbal_behaviour = gimbal_rc_fallback_behaviour();
+    }
+#endif
+
+    if (toe_is_error(DBUS_TOE))
+    {
+        gimbal_behaviour = GIMBAL_ZERO_FORCE;
+    }
+
+    if (!gimbal_motor_chain_ready())
+    {
+        gimbal_behaviour = GIMBAL_ZERO_FORCE;
+        return;
+    }
+
+    // Do not force INIT whenever leaving zero-force. In repeated power-cycle and
+    // mode-switch testing this delayed or overrode otherwise valid manual input.
+    // Keep the operator-selected behaviour directly once DBUS and the mode switch
+    // are valid.
 
 
 

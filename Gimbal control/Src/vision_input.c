@@ -1,4 +1,5 @@
 #include "vision_input.h"
+#include "usb_cdc_test.h"
 
 #include <string.h>
 
@@ -68,7 +69,10 @@ void VisionInput_FeedBytes(const uint8_t *data, uint16_t len)
     vision_input_ctx.status.rx_bytes += len;
     vision_input_ctx.status.last_rx_tick = HAL_GetTick();
 
-    // Keep the existing UART vision protocol parser alive.
+    // Stage 2 USB CDC ping/ack test traffic is parsed in the dedicated test module.
+    UsbCdcTest_FeedBytes(data, len);
+
+    // Keep the existing vision protocol parser alive for UART compatibility.
     ring_push_bytes(data, len);
     parse_ring_frames();
 }
@@ -238,7 +242,7 @@ static void parse_ring_frames(void)
 
             store_frame((uint16_t)(((uint16_t)frame[3] << 8) | frame[2]),
                         (uint16_t)(((uint16_t)frame[5] << 8) | frame[4]),
-                        vision_input_ctx.status.last_seq, 0U, 0U);
+                        (uint8_t)(vision_input_ctx.status.last_seq + 1U), 0U, 0U);
             ring_drop(VISION_LEGACY_FRAME_SIZE);
             continue;
         }

@@ -135,7 +135,15 @@ int main(void)
   MX_USB_DEVICE_Init();
   delay_init();
   can_filter_init();
+  // Force a clean USART3 reset on every cold boot so the DBUS/DMA receive path
+  // starts from the same state as it does after reflashing.
+  __HAL_RCC_USART3_FORCE_RESET();
+  HAL_Delay(10);
+  __HAL_RCC_USART3_RELEASE_RESET();
+  MX_USART3_UART_Init();
+  HAL_Delay(1500);
   remote_control_init();
+  HAL_Delay(100);
   UsbCdcTest_Init();
   // USART1 is reserved for the vision link.
   VisionInput_StartReception();

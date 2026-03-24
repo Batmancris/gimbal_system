@@ -87,7 +87,9 @@
 //yaw,pitch控制通道以及状态开关通道
 #define YAW_CHANNEL   2
 #define PITCH_CHANNEL 3
-#define GIMBAL_MODE_CHANNEL 0
+#define GIMBAL_MODE_CHANNEL 1
+#define RC_COMPAT_ENABLE 1
+#define RC_COMPAT_FALLBACK_ABSOLUTE 1
 
 //turn 180°
 //掉头180 按键
@@ -103,7 +105,7 @@
 
 
 #define YAW_RC_SEN    -0.000005f
-#define PITCH_RC_SEN  -0.000006f //0.005
+#define PITCH_RC_SEN   0.000006f //0.005
 
 #define YAW_MOUSE_SEN   0.00005f
 #define PITCH_MOUSE_SEN 0.00015f
@@ -112,30 +114,30 @@
 #define PITCH_ENCODE_SEN  0.01f
 
 #define GIMBAL_CONTROL_TIME 1
+#define GIMBAL_MOTOR_READY_STABLE_MS 800U
 
 #define VISION_IMAGE_WIDTH        1280.0f
 #define VISION_IMAGE_HEIGHT       1024.0f
 #define VISION_CENTER_X           (VISION_IMAGE_WIDTH * 0.5f)
 #define VISION_CENTER_Y           (VISION_IMAGE_HEIGHT * 0.5f)
-#define VISION_X_DEADBAND         12.0f
-#define VISION_Y_DEADBAND         12.0f
-#define VISION_YAW_PIXEL_TO_RAD   0.00008f
-#define VISION_PITCH_PIXEL_TO_RAD 0.00008f
-#define VISION_MAX_ANGLE_STEP     0.03f
+#define VISION_X_DEADBAND         20.0f
+#define VISION_Y_DEADBAND         20.0f
+#define VISION_YAW_PIXEL_TO_RAD   0.000014f
+#define VISION_PITCH_PIXEL_TO_RAD 0.0f
+#define VISION_MAX_ANGLE_STEP     0.0035f
+#define VISION_ERROR_SMOOTH_ALPHA 0.22f
 
-#define UART_DIAGNOSTIC_MODE      1
+#define VISION_ENGAGE_STABLE_FRAMES 2U
+#define VISION_RAMP_STEP           0.35f
+
+#define UART_DIAGNOSTIC_MODE      0
 #define UART_DIAG_YAW_STEP        0.08f
 #define UART_DIAG_PITCH_STEP      0.04f
 #define UART_DIAG_TOGGLE_MS       250U
 
 #define USB_TEST_DISABLE        0
 #define USB_TEST_PITCH_CONTROL  1
-
-// Keep disabled by default so the normal control path is unchanged.
-// You may override this at compile time or edit it locally for USB CDC validation.
-#ifndef USB_TEST_CONTROL_MODE
 #define USB_TEST_CONTROL_MODE   USB_TEST_DISABLE
-#endif
 
 //test mode, 0 close, 1 open
 //云台测试模式 宏定义 0 为不使用测试模式
@@ -316,6 +318,28 @@ extern void gimbal_task(void const *pvParameters);
   */
 extern bool_t cmd_cali_gimbal_hook(uint16_t *yaw_offset, uint16_t *pitch_offset, fp32 *max_yaw, fp32 *min_yaw, fp32 *max_pitch, fp32 *min_pitch);
 
+typedef struct
+{
+    uint8_t vision_enabled;
+    uint8_t target_valid;
+    uint8_t target_seq;
+    uint16_t raw_x;
+    uint16_t raw_y;
+    int16_t error_x;
+    int16_t error_y;
+    int16_t yaw_add_mrad;
+    int16_t pitch_add_mrad;
+    int16_t manual_yaw_add_mrad;
+    int16_t manual_pitch_add_mrad;
+    uint8_t yaw_mode;
+    uint8_t pitch_mode;
+    int16_t yaw_set_mrad;
+    int16_t pitch_set_mrad;
+    int16_t yaw_given_current;
+    int16_t pitch_given_current;
+    uint32_t control_tick;
+} gimbal_vision_diag_t;
+
 /**
   * @brief          gimbal cali data, set motor offset encode, max and min relative angle
   * @param[in]      yaw_offse:yaw middle place encode
@@ -338,4 +362,6 @@ extern bool_t cmd_cali_gimbal_hook(uint16_t *yaw_offset, uint16_t *pitch_offset,
   * @waring         这个函数使用到gimbal_control 静态变量导致函数不适用以上通用指针复用
   */
 extern void set_cali_gimbal_hook(const uint16_t yaw_offset, const uint16_t pitch_offset, const fp32 max_yaw, const fp32 min_yaw, const fp32 max_pitch, const fp32 min_pitch);
+
+extern void GimbalVisionDiag_Get(gimbal_vision_diag_t *diag);
 #endif
