@@ -20,6 +20,11 @@
 - 若与当前代码状态冲突，请优先以当前源码和主线 README 为准
 - 目录中提到的 `docs/` 结构并不完全等同于当前仓库真实布局
 
+### 使用建议
+
+- 先看当前主线 README，再把这里当作背景材料
+- 这里更适合做“为什么曾经这样改”的追溯，不适合作为当前操作入口
+
 ## English
 
 ### Overview
@@ -37,3 +42,8 @@
 - Some documents in this directory were written at different stages and may contain optimistic wording, placeholders, or outdated paths
 - If they conflict with the current code state, prefer the source tree and current mainline README files
 - The `docs/` structure mentioned in some texts does not fully match the current repository layout
+
+### Usage Guidance
+
+- read the current mainline READMEs first, then use this directory as background material
+- this directory is better suited for tracing historical decisions than for current operational entry points

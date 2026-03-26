@@ -6,7 +6,7 @@
 
 ### 仓库定位
 
-这是当前云台系统的总仓库（monorepo），用于统一管理：
+这是当前云台系统的总仓库入口，用于统一管理：
 
 - 上位机 ROS2 / TROS / RDK-X5 主线
 - 下位机 STM32 云台控制主线
@@ -44,7 +44,7 @@ gimbal_system/
 ├── dev-branch/               # ROS2 / TROS / RDK-X5 上位机主线工作区
 ├── tianboard_s/              # 参考 / 备用板级工程
 ├── tools/                    # 辅助工具与诊断脚本
-└── _git_migration_backup/    # monorepo 整理时保留的迁移备份
+└── _git_migration_backup/    # 仓库整理时保留的迁移备份
 ```
 
 ### 目录导航
@@ -97,7 +97,7 @@ gimbal_system/
 
 #### `_git_migration_backup/`
 
-保存 monorepo 归并时的备份产物，不参与当前主线开发。
+保存仓库归并时的备份产物，不参与当前主线开发。
 
 入口：[`_git_migration_backup/README.md`](./_git_migration_backup/README.md)
 
@@ -137,7 +137,7 @@ gimbal_system/
 
 ### 当前已知边界
 
-- monorepo 已建立，但历史目录和迁移痕迹仍然保留
+- 当前总仓库结构已经稳定，但历史目录和迁移痕迹仍然保留
 - USB CDC 目前属于迁移验证路径，不是默认整机运行路径
 - 一些目录保留是为了参考、对照和回溯，不代表当前应从这些目录继续开发
 
@@ -145,7 +145,7 @@ gimbal_system/
 
 ### Repository Role
 
-This is the current monorepo for the gimbal system. It keeps together:
+This repository is the current top-level entry for the gimbal system. It keeps together:
 
 - the active ROS2 / TROS / RDK-X5 upper-level workspace
 - the active STM32 lower-level firmware mainline
@@ -178,12 +178,12 @@ Current conclusions:
 
 ```text
 gimbal_system/
-├── README.md                 # this file, monorepo entry
+├── README.md                 # this file, top-level entry
 ├── Gimbal control/           # STM32 lower-level firmware mainline
 ├── dev-branch/               # ROS2 / TROS / RDK-X5 upper-level workspace
 ├── tianboard_s/              # reference / backup board-level project
 ├── tools/                    # helper tools and diagnostics
-└── _git_migration_backup/    # migration backups kept from monorepo consolidation
+└── _git_migration_backup/    # migration backups kept from repository consolidation
 ```
 
 ### Directory Guide
@@ -236,13 +236,13 @@ Entry: [`tools/README.md`](./tools/README.md)
 
 #### `_git_migration_backup/`
 
-Stores consolidation backups and migration artifacts. It is not part of the current development path.
+Stores repository-consolidation backups and migration artifacts. It is not part of the current development path.
 
 Entry: [`_git_migration_backup/README.md`](./_git_migration_backup/README.md)
 
 ### Recommended Reading Order
 
-If you are entering this monorepo for the first time, read in this order:
+If you are entering this repository for the first time, read in this order:
 
 1. this README for current repository boundaries
 2. [`dev-branch/README.md`](./dev-branch/README.md) for the upper-level mainline packages and retained legacy paths
@@ -276,6 +276,6 @@ Documentation-side guidance:
 
 ### Known Boundaries
 
-- the monorepo is established, but historical directories and migration traces are intentionally retained
+- the top-level repository structure is already settled, but historical directories and migration traces are intentionally retained
 - USB CDC is still a migration-validation path rather than the default whole-system runtime path
 - some directories are kept for reference, comparison, or rollback context and are not the places to continue current mainline development

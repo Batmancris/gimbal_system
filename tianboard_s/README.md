@@ -31,6 +31,11 @@
 - 不要把这里当作当前唯一真实来源
 - 不要在这里继续主线功能开发，除非明确要做参考提取或归档整理
 
+### 阅读建议
+
+- 当前下位机主线请先看 `Gimbal control/README.md`
+- 只有在需要参考旧板级实现时再回到这里
+
 ## English
 
 ### Overview
@@ -59,3 +64,8 @@ It is not the active system mainline. Its role is:
 
 - do not treat this directory as the current single source of truth
 - do not continue mainline feature development here unless the goal is explicit reference extraction or archival cleanup
+
+### Reading Guidance
+
+- for the current lower-level mainline, read `Gimbal control/README.md` first
+- come back here only when you explicitly need older board-level reference material

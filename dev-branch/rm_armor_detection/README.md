@@ -78,6 +78,12 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 - 新增的桌面可视化节点现在已经纳入 `start_autoaim_tmux.sh` 的默认板端三节点启动链
 - 若只想单独排查桥接链路，可将可视化旁路保持开启，同时另行使用 `start_rm_bridge_tmux.sh` 拉起桥接节点
 
+### 阅读建议
+
+- 若你在看上位机总链路，请先读 `dev-branch/README.md`
+- 若你在看部署和启动入口，请同时看 `scripts/README.md`
+- 若你在看下发链路，请继续读 `rm_gimbal_bridge/README.md`
+
 ## English
 
 ### Overview
@@ -153,3 +159,9 @@ The visualizer window:
 - The current mainline focus is the detector-to-bridge path, not just standalone demo presentation
 - The desktop visualizer is now part of the default board-side three-node startup path in `start_autoaim_tmux.sh`
 - If you only want to isolate the bridge path, you can keep the visualizer sidecar running and start the bridge separately via `start_rm_bridge_tmux.sh`
+
+### Reading Guidance
+
+- for the full upper-level chain, start with `dev-branch/README.md`
+- for deployment and startup entry points, read `scripts/README.md` together with this file
+- for the downstream target-delivery path, continue with `rm_gimbal_bridge/README.md`

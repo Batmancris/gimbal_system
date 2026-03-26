@@ -27,6 +27,12 @@
 
 本模块仍然具有研究和教学价值，但当前项目主线检测路径已经转向 `rm_armor_detection` 的 YOLOv8 / BPU 实现。
 
+### 阅读建议
+
+- 若当前目标是维护整机主链，请先看 `dev-branch/README.md`
+- 若当前目标是检测主链联调，请优先看 `rm_armor_detection/README.md`
+- 若当前目标是回看传统视觉方案，再回到本目录
+
 ## English
 
 ### Overview
@@ -51,3 +57,9 @@ It uses classical processing stages such as image preprocessing, light bar extra
 ### Current Note
 
 This module still has research and teaching value, but the active project detection path has moved to the YOLOv8 / BPU implementation in `rm_armor_detection`.
+
+### Reading Guidance
+
+- if your goal is current whole-system maintenance, start with `dev-branch/README.md`
+- if your goal is the active detector path, read `rm_armor_detection/README.md` first
+- come back here when you specifically need the preserved traditional CV path

@@ -59,6 +59,11 @@
 2. 继续保留 UART 兼容路径直到 USB CDC 全链路验证完成
 3. 若继续推进 USB CDC，请优先复用现有 `vision_input` 与 `usb_cdc_test` 入口
 
+### 阅读建议
+
+- 若你在看整机链路，请同时参考上位机 `dev-branch/README.md`
+- 若你在看 USB CDC 迁移，请同时看 `dev-branch/scripts/README.md`
+
 ## English
 
 ### Overview
@@ -124,3 +129,8 @@ This means:
 1. Keep this directory as the only formal lower-level firmware project
 2. Preserve UART compatibility until USB CDC is validated across the full system
 3. Reuse the existing `vision_input` and `usb_cdc_test` hooks for continued USB CDC migration
+
+### Reading Guidance
+
+- for the full system path, read this together with `dev-branch/README.md`
+- for USB CDC migration and validation scripts, also read `dev-branch/scripts/README.md`

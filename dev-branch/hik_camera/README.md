@@ -7,7 +7,7 @@
 ### 简介
 
 `hik_camera` 是当前上位机主线使用的海康工业相机 ROS2 驱动。
-<!--  -->
+
 它负责：
 
 - 枚举并打开海康工业相机
@@ -52,6 +52,11 @@ ros2 launch hik_camera hik_camera.launch.py
 ### 说明
 
 当前项目里虽然还保留了其他相机驱动目录，但主线优先维护本包。
+
+### 阅读建议
+
+- 若你在看整机链路，请同时参考 `rm_armor_detection/README.md` 和 `rm_gimbal_bridge/README.md`
+- 若你只是在排查相机输入、曝光或共享内存链路，本 README 就是当前相机侧入口
 
 ## English
 
@@ -103,3 +108,8 @@ ros2 launch hik_camera hik_camera.launch.py
 ### Note
 
 Other camera driver directories still exist in the workspace, but this package is the preferred camera mainline to maintain.
+
+### Reading Guidance
+
+- for the full runtime chain, read this together with `rm_armor_detection/README.md` and `rm_gimbal_bridge/README.md`
+- if you are only diagnosing camera bring-up, exposure, or shared-memory transport, this README is the correct camera-side entry

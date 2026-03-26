@@ -22,6 +22,11 @@
 - 串口接收与测量相关消息
 - `SetMode` 服务定义
 
+### 使用建议
+
+- 如果你在看数据流接口，建议和 `rm_armor_detection`、`rm_gimbal_bridge` 一起对照
+- 如果你在看单节点启动，这里通常不是直接入口，而是被其他包依赖
+
 ## English
 
 ### Overview
@@ -41,3 +46,8 @@
 - chassis / gimbal control related messages
 - serial receive and measurement related messages
 - the `SetMode` service definition
+
+### Usage Guidance
+
+- if you are tracing data interfaces, read this together with `rm_armor_detection` and `rm_gimbal_bridge`
+- this directory is usually not a direct runtime entry; it is a shared dependency for other packages

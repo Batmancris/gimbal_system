@@ -39,6 +39,12 @@
 
 如果当前目标是维护整机主链，请优先使用 `hik_camera`，除非你明确需要回看旧的大恒相机路径。
 
+### 阅读建议
+
+- 当前相机主线请看 `hik_camera/README.md`
+- 当前整机上位机入口请看 `dev-branch/README.md`
+- 本 README 主要用于旧相机链路回溯
+
 ## English
 
 ### Overview
@@ -75,3 +81,9 @@ It mainly provides:
 ### Note
 
 If your goal is to maintain the current whole-system mainline, prefer `hik_camera` unless you explicitly need the older Daheng-based path.
+
+### Reading Guidance
+
+- for the active camera path, read `hik_camera/README.md`
+- for the current upper-level entry, read `dev-branch/README.md`
+- use this README mainly when tracing the older Daheng-based path

@@ -29,6 +29,11 @@
 - 相机与视觉节点共用工具能力
 - ROS2 节点复用日志、路径解析、心跳发布等基础设施
 
+### 阅读建议
+
+- 若你在排查日志封装，可继续看 `include/rm_utils/logger/README.md`
+- 若你在看整机链路，本目录通常不是第一入口，而是被多个主线包复用
+
 ## English
 
 ### Overview
@@ -55,3 +60,8 @@
 - shared math modules for detection and tracking
 - reusable utility support for camera and vision nodes
 - common ROS2 infrastructure such as logging, path resolution, and heartbeat publication
+
+### Reading Guidance
+
+- if you are investigating the logging wrapper, continue with `include/rm_utils/logger/README.md`
+- for the whole runtime path, this directory is usually a shared dependency rather than the first entry point

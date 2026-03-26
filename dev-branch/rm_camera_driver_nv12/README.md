@@ -38,6 +38,12 @@ ros2 run rm_camera_driver_nv12 rm_camera_driver_nv12_node
 
 当前项目默认主线相机驱动是 `hik_camera`。本包继续保留，主要是为了参考旧的 NV12 方案，而不是作为默认入口。
 
+### 阅读建议
+
+- 当前相机主线请看 `hik_camera/README.md`
+- 当前检测主线请看 `rm_armor_detection/README.md`
+- 本 README 更适合用于旧共享内存链路回看
+
 ## English
 
 ### Overview
@@ -73,3 +79,9 @@ ros2 run rm_camera_driver_nv12 rm_camera_driver_nv12_node
 ### Note
 
 The current project camera mainline is `hik_camera`. This package is kept mainly for reference to the older NV12 path, not as the default entry point.
+
+### Reading Guidance
+
+- for the active camera path, read `hik_camera/README.md`
+- for the active detector path, read `rm_armor_detection/README.md`
+- use this README mainly when reviewing the older shared-memory path

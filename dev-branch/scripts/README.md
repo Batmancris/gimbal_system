@@ -46,6 +46,12 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 - `usb_cdc_pitch_control_test.py` 仅用于 USB CDC 通信验证，不替代当前 UART 主链
 - 使用该脚本前，需要 STM32 侧显式打开对应测试模式
 
+### 阅读建议
+
+- 如果你先看到了本目录，建议回头配合 `dev-branch/README.md` 一起看
+- 若你在看桥接链，请同时参考 `rm_gimbal_bridge/README.md`
+- 若你在看板端三节点显示链，请同时参考 `hik_camera/README.md` 和 `rm_armor_detection/README.md`
+
 ## English
 
 ### Overview
@@ -88,3 +94,9 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 - `usb_cdc_pitch_control_test.py` is only for USB CDC communication validation and does not replace the UART mainline
 - Only use the USB CDC test script when the STM32 side explicitly enables the matching test mode
 - For boot-time startup, prefer runtime-only autostart instead of build-and-run, and use `STARTUP_DELAY_SEC` plus `WAIT_FOR_SERIAL_SEC` when `/dev/ttyACM0` may appear late
+
+### Reading Guidance
+
+- if you started from this directory, read `dev-branch/README.md` alongside it
+- for the bridge path, pair this with `rm_gimbal_bridge/README.md`
+- for the board-side three-node display path, pair this with `hik_camera/README.md` and `rm_armor_detection/README.md`

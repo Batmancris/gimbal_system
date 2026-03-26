@@ -4,7 +4,7 @@
 
 This file is kept only as a historical redirect page.
 
-The old `RM Armor Tracker` text no longer matches the current monorepo layout, package names, or mainline runtime path.
+The old `RM Armor Tracker` text no longer matches the current repository layout, package names, or mainline runtime path.
 
 Please read these files instead:
 
@@ -15,5 +15,5 @@ Please read these files instead:
 Historical note:
 
 - the older split-repository document referenced `rm_armor_tracker`
-- the current repository is a monorepo rooted at `gimbal_system`
+- the current repository is rooted at `gimbal_system`
 - the active camera and detector path is now `hik_camera + rm_armor_detection + rm_gimbal_bridge`

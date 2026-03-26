@@ -48,6 +48,12 @@
 - `enemy_prefix` 仍然是颜色前缀过滤入口；留空时表示不过滤颜色前缀
 - 该包仍然是当前整机自动瞄准联调时的 UART 主链，不受桌面可视化节点替代
 
+### 当前入口关系
+
+- 上游检测主线：`rm_armor_detection`
+- 下游通信默认主链：`UART -> Gimbal control`
+- 脚本入口：`scripts/start_rm_bridge_tmux.sh`
+
 ### 运行
 
 ```bash
@@ -138,3 +144,9 @@ ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py serial_port:=/dev/ttyS1
 
 - The recent USB CDC validation work did not change the role of `rm_gimbal_bridge`
 - This package remains the current UART mainline bridge for integrated auto-aim runs
+
+### Current Entry Relationships
+
+- upstream detector mainline: `rm_armor_detection`
+- downstream default communication path: `UART -> Gimbal control`
+- script entry: `scripts/start_rm_bridge_tmux.sh`
