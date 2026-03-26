@@ -47,6 +47,17 @@
 - 当前工程内 `min_confidence` 已放宽，用于整链路 bring-up 时减少目标被桥接侧过早过滤
 - `enemy_prefix` 仍然是颜色前缀过滤入口；留空时表示不过滤颜色前缀
 - 该包仍然是当前整机自动瞄准联调时的 UART 主链，不受桌面可视化节点替代
+- 打开 `log_diag_feedback` 后，会在原始 `diag ...` 日志之外额外输出精简调参日志：
+
+```text
+tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=... current=(...) seq=...
+```
+
+其中：
+
+- `err` 对应下位机视觉误差 `error_x / error_y`
+- `add` 对应下位机视觉增量 `yaw_add_mrad / pitch_add_mrad`
+- `pitch_set` 对应下位机当前 `pitch_set_mrad`
 
 ### 当前入口关系
 
@@ -119,6 +130,17 @@ It converts `ai_msgs/msg/PerceptionTargets` into the 8-byte serial protocol curr
 - the current in-repo `min_confidence` is relaxed for end-to-end bring-up so valid targets are less likely to be filtered too early by the bridge
 - `enemy_prefix` is still the color-prefix filter; leaving it empty means no color-prefix filtering
 - this package remains the active UART bridge for full-system auto-aim integration, even though a desktop visualizer now exists for debugging
+- when `log_diag_feedback` is enabled, the bridge also prints a compact tuning log:
+
+```text
+tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=... current=(...) seq=...
+```
+
+where:
+
+- `err` maps to lower-level `error_x / error_y`
+- `add` maps to lower-level `yaw_add_mrad / pitch_add_mrad`
+- `pitch_set` maps to lower-level `pitch_set_mrad`
 
 ### Run
 

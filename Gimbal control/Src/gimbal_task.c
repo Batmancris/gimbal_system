@@ -70,6 +70,8 @@ uint32_t gimbal_high_water;
 #endif
 
 static gimbal_vision_diag_t g_gimbal_vision_diag = {0};
+static vision_pid_t g_vision_yaw_pid = {0};
+static vision_pid_t g_vision_pitch_pid = {0};
 
 
 /**
@@ -147,6 +149,9 @@ static fp32 motor_ecd_to_angle_change(uint16_t ecd, uint16_t offset_ecd);
 static void gimbal_set_control(gimbal_control_t *set_control, const gimbal_mode_command_t *mode_command, const target_state_t *target_state);
 static void gimbal_apply_vision_control(fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state, uint8_t vision_enabled);
 static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control, fp32 *add_yaw_angle, fp32 *add_pitch_angle, const target_state_t *target_state);
+static void vision_pid_init(vision_pid_t *pid, fp32 kp, fp32 ki, fp32 kd, fp32 maxout, fp32 max_iout);
+static void vision_pid_reset(vision_pid_t *pid);
+static fp32 vision_pid_calc(vision_pid_t *pid, fp32 err);
 /**
   * @brief          control loop, according to control set-point, calculate motor current, 
   *                 motor current will be sent to motor
@@ -665,6 +670,10 @@ static void gimbal_init(gimbal_control_t *init)
 
     //清除所有PID
     gimbal_total_pid_clear(init);
+    vision_pid_init(&g_vision_yaw_pid, VISION_YAW_PID_KP, VISION_YAW_PID_KI, VISION_YAW_PID_KD,
+                    VISION_PID_MAX_OUT, VISION_PID_MAX_IOUT);
+    vision_pid_init(&g_vision_pitch_pid, VISION_PITCH_PID_KP, VISION_PITCH_PID_KI, VISION_PITCH_PID_KD,
+                    VISION_PID_MAX_OUT, VISION_PID_MAX_IOUT);
 
     gimbal_feedback_update(init);
 
@@ -912,6 +921,7 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
     static fp32 engage_ratio = 0.0f;
     static fp32 smoothed_error_x = 0.0f;
     static fp32 smoothed_error_y = 0.0f;
+    static fp32 accumulated_pitch_add = 0.0f;
     uint8_t has_new_frame = 0U;
     fp32 error_x = 0.0f;
     fp32 error_y = 0.0f;
@@ -950,6 +960,9 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         engage_ratio = 0.0f;
         smoothed_error_x = 0.0f;
         smoothed_error_y = 0.0f;
+        accumulated_pitch_add = 0.0f;
+        vision_pid_reset(&g_vision_yaw_pid);
+        vision_pid_reset(&g_vision_pitch_pid);
         return;
     }
 
@@ -965,6 +978,9 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         last_seq = target_state->seq;
         smoothed_error_x = 0.0f;
         smoothed_error_y = 0.0f;
+        accumulated_pitch_add = 0.0f;
+        vision_pid_reset(&g_vision_yaw_pid);
+        vision_pid_reset(&g_vision_pitch_pid);
     }
 
     if (target_state->seq != last_seq)
@@ -1028,8 +1044,21 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         }
     }
 
-    applied_yaw = -vision_limit_increment(error_x * VISION_YAW_PIXEL_TO_RAD * engage_ratio);
-    applied_pitch = -vision_limit_increment(error_y * VISION_PITCH_PIXEL_TO_RAD * engage_ratio);
+    applied_yaw = -vision_limit_increment(vision_pid_calc(&g_vision_yaw_pid, error_x) * engage_ratio);
+    applied_pitch = -vision_limit_increment(vision_pid_calc(&g_vision_pitch_pid, error_y) * engage_ratio);
+    {
+        fp32 next_pitch_add = accumulated_pitch_add + applied_pitch;
+        if (next_pitch_add > GIMBAL_PITCH_FOLLOW_MAX_ANGLE)
+        {
+            next_pitch_add = GIMBAL_PITCH_FOLLOW_MAX_ANGLE;
+        }
+        else if (next_pitch_add < -GIMBAL_PITCH_FOLLOW_MAX_ANGLE)
+        {
+            next_pitch_add = -GIMBAL_PITCH_FOLLOW_MAX_ANGLE;
+        }
+        applied_pitch = next_pitch_add - accumulated_pitch_add;
+        accumulated_pitch_add = next_pitch_add;
+    }
 
     *add_yaw_angle += applied_yaw;
     *add_pitch_angle += applied_pitch;
@@ -1074,6 +1103,60 @@ static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control,
     (void)target_state;
     return 0U;
 #endif
+}
+
+static void vision_pid_init(vision_pid_t *pid, fp32 kp, fp32 ki, fp32 kd, fp32 maxout, fp32 max_iout)
+{
+    if (pid == NULL)
+    {
+        return;
+    }
+
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    pid->max_out = maxout;
+    pid->max_iout = max_iout;
+    vision_pid_reset(pid);
+}
+
+static void vision_pid_reset(vision_pid_t *pid)
+{
+    if (pid == NULL)
+    {
+        return;
+    }
+
+    pid->iout = 0.0f;
+    pid->last_err = 0.0f;
+    pid->initialized = 0U;
+}
+
+static fp32 vision_pid_calc(vision_pid_t *pid, fp32 err)
+{
+    fp32 deriv = 0.0f;
+    fp32 out;
+
+    if (pid == NULL)
+    {
+        return 0.0f;
+    }
+
+    if (pid->initialized != 0U)
+    {
+        deriv = err - pid->last_err;
+    }
+    else
+    {
+        pid->initialized = 1U;
+    }
+
+    pid->iout += pid->ki * err;
+    abs_limit(&pid->iout, pid->max_iout);
+    out = pid->kp * err + pid->iout + pid->kd * deriv;
+    abs_limit(&out, pid->max_out);
+    pid->last_err = err;
+    return out;
 }
 
 static fp32 vision_limit_increment(fp32 add)

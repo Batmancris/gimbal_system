@@ -120,15 +120,24 @@
 #define VISION_IMAGE_HEIGHT       1024.0f
 #define VISION_CENTER_X           (VISION_IMAGE_WIDTH * 0.5f)
 #define VISION_CENTER_Y           (VISION_IMAGE_HEIGHT * 0.5f)
-#define VISION_X_DEADBAND         20.0f
-#define VISION_Y_DEADBAND         20.0f
+#define VISION_X_DEADBAND         8.0f
+#define VISION_Y_DEADBAND         8.0f
 #define VISION_YAW_PIXEL_TO_RAD   0.000014f
 #define VISION_PITCH_PIXEL_TO_RAD 0.000014f
-#define VISION_MAX_ANGLE_STEP     0.0035f
-#define VISION_ERROR_SMOOTH_ALPHA 0.22f
+#define VISION_YAW_PID_KP         0.000070f
+#define VISION_YAW_PID_KI         0.0f
+#define VISION_YAW_PID_KD         0.0f
+#define VISION_PITCH_PID_KP       0.000070f
+#define VISION_PITCH_PID_KI       0.0f
+#define VISION_PITCH_PID_KD       0.0f
+#define VISION_PID_MAX_IOUT       0.0f
+#define VISION_PID_MAX_OUT        VISION_MAX_ANGLE_STEP
+#define VISION_MAX_ANGLE_STEP     0.0080f
+#define VISION_ERROR_SMOOTH_ALPHA 0.16f
+#define GIMBAL_PITCH_FOLLOW_MAX_ANGLE 0.7853982f
 
 #define VISION_ENGAGE_STABLE_FRAMES 2U
-#define VISION_RAMP_STEP           0.35f
+#define VISION_RAMP_STEP           0.25f
 
 #define UART_DIAGNOSTIC_MODE      0
 #define UART_DIAG_YAW_STEP        0.08f
@@ -247,6 +256,18 @@ typedef struct
     uint16_t min_pitch_ecd;
     uint8_t step;
 } gimbal_step_cali_t;
+
+typedef struct
+{
+    fp32 kp;
+    fp32 ki;
+    fp32 kd;
+    fp32 max_out;
+    fp32 max_iout;
+    fp32 iout;
+    fp32 last_err;
+    uint8_t initialized;
+} vision_pid_t;
 
 typedef struct
 {

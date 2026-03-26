@@ -64,6 +64,35 @@
 - 若你在看整机链路，请同时参考上位机 `dev-branch/README.md`
 - 若你在看 USB CDC 迁移，请同时看 `dev-branch/scripts/README.md`
 
+### 视觉跟随调参记录
+
+当前下位机在视觉跟随过程中会持续填充并上送以下诊断量：
+
+- `error_x` / `error_y`：目标相对图像中心的滤波后像素误差
+- `yaw_add_mrad` / `pitch_add_mrad`：本次视觉控制实际追加的角度增量，单位毫弧度
+- `pitch_set_mrad`：当前 P 轴最终设定值，单位毫弧度
+
+当前行为：
+
+- 视觉跟随已整理为 PID 框架，但当前默认仅启用 `P`
+- `P` 轴跟随目标额外限制在 `[-pi/4, +pi/4]`
+- 单次视觉追加量仍受 `VISION_MAX_ANGLE_STEP` 保护
+
+联调建议：
+
+1. 在上位机运行 `rm_gimbal_bridge` 时观察 `tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=...` 日志
+2. 若 `error_y` 长时间很大而 `pitch_add_mrad` 很小，可增大 `VISION_PITCH_PID_KP`
+3. 若 `pitch_add_mrad` 来回抖动、目标上下振荡，可减小 `VISION_PITCH_PID_KP`
+4. 若 `pitch_set_mrad` 经常贴近 `+-785mrad`，说明已触发当前 `P` 轴软件限位
+
+当前调参入口：
+
+- `Src/gimbal_task.h`
+  - `VISION_YAW_PID_KP`
+  - `VISION_PITCH_PID_KP`
+  - `VISION_PID_MAX_OUT`
+  - `GIMBAL_PITCH_FOLLOW_MAX_ANGLE`
+
 ## English
 
 ### Overview
@@ -134,3 +163,32 @@ This means:
 
 - for the full system path, read this together with `dev-branch/README.md`
 - for USB CDC migration and validation scripts, also read `dev-branch/scripts/README.md`
+
+### Vision Follow Tuning Notes
+
+During visual follow, the lower-level firmware now continuously reports:
+
+- `error_x` / `error_y`: filtered pixel error relative to image center
+- `yaw_add_mrad` / `pitch_add_mrad`: actual visual angle increment applied this cycle, in milliradians
+- `pitch_set_mrad`: current pitch setpoint after limiting, in milliradians
+
+Current behavior:
+
+- the visual follow path now uses a PID-shaped control hook, with only `P` enabled by default
+- the pitch follow target is additionally constrained to `[-pi/4, +pi/4]`
+- each visual increment is still protected by `VISION_MAX_ANGLE_STEP`
+
+Suggested tuning flow:
+
+1. Watch the upper-level `rm_gimbal_bridge` log line `tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=...`
+2. If `error_y` stays large while `pitch_add_mrad` is too small, increase `VISION_PITCH_PID_KP`
+3. If `pitch_add_mrad` oscillates and the target hunts vertically, decrease `VISION_PITCH_PID_KP`
+4. If `pitch_set_mrad` often stays close to `+-785mrad`, the current pitch software limit is being hit
+
+Current tuning entry points:
+
+- `Src/gimbal_task.h`
+  - `VISION_YAW_PID_KP`
+  - `VISION_PITCH_PID_KP`
+  - `VISION_PID_MAX_OUT`
+  - `GIMBAL_PITCH_FOLLOW_MAX_ANGLE`

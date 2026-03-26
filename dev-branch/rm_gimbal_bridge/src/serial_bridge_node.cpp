@@ -337,6 +337,14 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
           diag.yaw_mode, diag.pitch_mode, diag.yaw_set_mrad, diag.pitch_set_mrad,
           diag.yaw_given_current, diag.pitch_given_current,
           diag.parsed_frames, diag.rx_bytes);
+
+        if (vision_enabled && target_valid) {
+          RCLCPP_INFO_THROTTLE(
+            get_logger(), *get_clock(), 200,
+            "tune err=(%d,%d) add=(%d,%d)mrad pitch_set=%dmrad current=(%d,%d) seq=%u",
+            diag.error_x, diag.error_y, diag.yaw_add_mrad, diag.pitch_add_mrad,
+            diag.pitch_set_mrad, diag.yaw_given_current, diag.pitch_given_current, diag.seq);
+        }
       }
 
       diag_rx_buffer_.erase(diag_rx_buffer_.begin(), diag_rx_buffer_.begin() + kVisionDiagFrameSize);
