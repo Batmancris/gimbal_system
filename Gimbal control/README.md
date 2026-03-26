@@ -34,6 +34,8 @@
 - 主机到 STM32 的接收路径已打通
 - 下位机可对收到的数据进行回显
 - 已增加 pitch swing test with safety switch 诊断能力
+- 已完成 `rm_gimbal_bridge -> USB CDC -> Gimbal control` 的一次成功目标跟踪联调
+- P 轴视觉跟踪比例与诊断链路已补齐到和 Y 轴一致，现场联调已验证有效
 
 这说明：
 
@@ -91,6 +93,8 @@ At the current workspace state, USB CDC already provides:
 - pitch swing test support with a safety switch
 - a verified minimal pitch control validation path from upper-level host to lower-level firmware
 - the ability to switch back to the default remote/UART path after testing
+- one successful end-to-end target-tracking integration with `rm_gimbal_bridge -> USB CDC -> Gimbal control`
+- pitch visual tracking gain and diagnostic visibility aligned with yaw, verified in on-device integration
 
 This validation path specifically keeps:
 
