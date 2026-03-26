@@ -1,26 +1,16 @@
-# rm_camera_driver_nv12
+# README_cn Redirect
 
-FYT视觉24赛季工业相机驱动模块
+[English](./README.md) | 简体中文
 
-## fyt::DahengCameraNode
+本文件保留为历史中文跳转页。
 
-大恒相机驱动节点
+当前 `rm_camera_driver_nv12` 的正式说明已经统一写入双语 [`README.md`](./README.md)。
 
-### 发布话题 
+旧版中文文档中的部分路径和默认参数已经不再适合作为当前仓库入口说明，因此请直接以新的 `README.md` 为准。
 
-*  `hbmem_img` (`hbm_img_msgs/msg/HbmMsg1080P`) - 相机采集到的图像
-*  `camera_info` (`sensor_msgs/msg/CameraInfo`) - 相机内参
-  
-### 参数 
+建议阅读：
 
-* `camera_info_url` (string, default: "package://rm_bringup/config/camera_info.yaml") - camera_info.yaml文件的路径
-* `exposure_time` (int, default: 2000) - 相机曝光时间
-* `gain` (double, default: 15.0) - 相机增益
-* `resolution_width` (int, default: 1280) - 图像宽
-* `resolution_height` (int, default: 1024) - 图像高
-* `recording` (bool, default: false) - 是否录制视频 
-
-### 启动指令
-```
-ros2 run rm_camera_driver_nv12 rm_camera_driver_nv12_node
-```
+- 包定位
+- 输入输出
+- 运行命令
+- 当前与 `hik_camera` 的主线关系

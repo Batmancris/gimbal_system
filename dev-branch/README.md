@@ -69,6 +69,24 @@ image_raw + /dnn_node_sample
 - `ultralytics-8.2.103/`：本地保留的第三方 YOLO 代码副本，主要用于训练、调参或源码参考，不是当前运行主链
 - `work_handover/`：交接和汇报性质文档，信息可参考，但不应覆盖当前主线 README
 
+### 文档入口
+
+建议按下面顺序阅读：
+
+1. 本 README：确认当前上位机主线边界
+2. `scripts/README.md`：确认部署、tmux、service 和 USB CDC 诊断脚本入口
+3. 各包目录内的 `README.md`：确认单包职责、输入输出和运行方式
+
+当前文档已经统一为“双语 `README.md` 为主，历史 README 为辅”的结构。
+
+如果你看到下面这些历史文件：
+
+- `Readme.md`
+- `Readme_zh.md`
+- `README_cn.md`
+
+请优先以新的 `README.md` 为准。
+
 ### 当前进度
 
 - 海康相机实时采集链已跑通
@@ -90,6 +108,24 @@ image_raw + /dnn_node_sample
 - 当前正式主链仍以 UART 为准
 - USB CDC 在上位机侧仍属于迁移配合阶段，不是默认运行路径
 - 历史目录较多，使用前请先确认是否属于当前主线
+
+### 当前可继续精简的结构
+
+以下目录或文件属于“保留但不应继续扩张”的对象：
+
+- `build/`
+- `install/`
+- `log/`
+- `scripts/__pycache__/`
+- `.git.BAK-20260319/`
+- `Readme.md`
+- `Readme_zh.md`
+
+文档层面的整理建议是：
+
+- 历史 README 收敛为跳转页
+- 生成目录继续视作构建产物，不参与长期文档入口
+- 第三方源码副本与交接文档继续保留，但要明确标注“非主线”
 
 ## English
 
@@ -158,6 +194,24 @@ The following directories are kept, but they are not the current default runtime
 - `ultralytics-8.2.103/`: local third-party YOLO source tree kept for training, tuning, or source reference, not the active runtime path
 - `work_handover/`: handover/reporting documents that are useful for context, but should not override the current mainline README files
 
+### Documentation Entry
+
+Recommended reading order:
+
+1. this README for the upper-level mainline boundary
+2. `scripts/README.md` for deployment, tmux, service, and USB CDC diagnostic entry points
+3. package-level `README.md` files for package-specific roles, I/O, and run commands
+
+The documentation now follows a simple rule: bilingual `README.md` files are the source of truth, while historical README variants are secondary.
+
+If you encounter these older files:
+
+- `Readme.md`
+- `Readme_zh.md`
+- `README_cn.md`
+
+prefer the new `README.md` in the same directory.
+
 ### Current Progress
 
 - The Hikrobot camera acquisition path is running on the RDK-X5
@@ -181,3 +235,21 @@ The following directories are kept, but they are not the current default runtime
 - `scripts/usb_cdc_pitch_control_test.py` is now available for minimal `/dev/ttyACM0` pitch validation only
 - that USB CDC test script does not replace the current UART-based `rm_gimbal_bridge` mainline
 - There are multiple historical directories, so verify whether a module belongs to the current mainline before using it
+
+### Remaining Structure Cleanup Candidates
+
+The following items are retained but should not keep growing as documentation entry points:
+
+- `build/`
+- `install/`
+- `log/`
+- `scripts/__pycache__/`
+- `.git.BAK-20260319/`
+- `Readme.md`
+- `Readme_zh.md`
+
+Documentation-side cleanup guidance:
+
+- keep historical READMEs as redirect pages only
+- keep generated directories out of the long-term navigation path
+- keep third-party copies and handover docs clearly labeled as non-mainline references

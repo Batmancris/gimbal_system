@@ -2,6 +2,9 @@
 # Backup (MUST IGNORE)
 # =========================
 _git_migration_backup/
+!_git_migration_backup/
+_git_migration_backup/*
+!_git_migration_backup/README.md
 *.tar.gz
 
 # =========================
