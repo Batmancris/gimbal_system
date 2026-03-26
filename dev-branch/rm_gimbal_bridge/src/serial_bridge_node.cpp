@@ -22,7 +22,7 @@ constexpr uint8_t kVisionDiagHead0 = 0xD1;
 constexpr uint8_t kVisionDiagHead1 = 0x5B;
 constexpr uint8_t kVisionDiagTail0 = 0x6B;
 constexpr uint8_t kVisionDiagTail1 = 0x1D;
-constexpr size_t kVisionDiagFrameSize = 46;
+constexpr size_t kVisionDiagFrameSize = 48;
 constexpr uint8_t kVisionDiagFlagVisionEnabled = 0x01;
 constexpr uint8_t kVisionDiagFlagTargetValid = 0x02;
 constexpr uint8_t kVisionDiagFlagLinkOnline = 0x04;
@@ -45,6 +45,7 @@ struct VisionDiagFrame {
   int16_t error_x;
   int16_t error_y;
   int16_t yaw_add_mrad;
+  int16_t pitch_add_mrad;
   uint16_t parsed_frames;
   uint16_t rx_bytes;
   uint8_t rc_sw0;
@@ -100,7 +101,7 @@ int16_t ReadLeI16(const uint8_t *data) {
 
 uint8_t VisionDiagChecksum(const uint8_t *frame) {
   uint8_t checksum = 0;
-  for (size_t i = 2; i <= 42; ++i) {
+  for (size_t i = 2; i <= 44; ++i) {
     checksum ^= frame[i];
   }
   return checksum;
@@ -276,8 +277,8 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       }
 
       const auto *frame = diag_rx_buffer_.data();
-      if (frame[44] != kVisionDiagTail0 || frame[45] != kVisionDiagTail1 ||
-          VisionDiagChecksum(frame) != frame[43]) {
+      if (frame[46] != kVisionDiagTail0 || frame[47] != kVisionDiagTail1 ||
+          VisionDiagChecksum(frame) != frame[45]) {
         diag_rx_buffer_.erase(diag_rx_buffer_.begin());
         continue;
       }
@@ -290,23 +291,24 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
         ReadLeI16(&frame[8]),
         ReadLeI16(&frame[10]),
         ReadLeI16(&frame[12]),
-        ReadLe16(&frame[14]),
+        ReadLeI16(&frame[14]),
         ReadLe16(&frame[16]),
-        frame[18],
-        frame[19],
-        ReadLeI16(&frame[20]),
+        ReadLe16(&frame[18]),
+        frame[20],
+        frame[21],
         ReadLeI16(&frame[22]),
         ReadLeI16(&frame[24]),
         ReadLeI16(&frame[26]),
-        frame[28],
-        ReadLeI16(&frame[29]),
+        ReadLeI16(&frame[28]),
+        frame[30],
         ReadLeI16(&frame[31]),
-        frame[33],
-        frame[34],
-        ReadLeI16(&frame[35]),
+        ReadLeI16(&frame[33]),
+        frame[35],
+        frame[36],
         ReadLeI16(&frame[37]),
         ReadLeI16(&frame[39]),
         ReadLeI16(&frame[41]),
+        ReadLeI16(&frame[43]),
       };
 
       last_diag_ = diag;
@@ -327,10 +329,10 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
         const bool dbus_toe = (diag.flags & kVisionDiagFlagDbusToe) != 0;
         RCLCPP_INFO_THROTTLE(
           get_logger(), *get_clock(), 200,
-          "diag vision=%d latched=%d target=%d link=%d rc_error=%d dbus_toe=%d behaviour=%u sw=(%u,%u) ch=(%d,%d,%d,%d) seq=%u raw=(%u,%u) err=(%d,%d) vision_add=%d manual_add=(%d,%d) mode=(%u,%u) set=(%d,%d) current=(%d,%d) parsed=%u rx=%u",
+          "diag vision=%d latched=%d target=%d link=%d rc_error=%d dbus_toe=%d behaviour=%u sw=(%u,%u) ch=(%d,%d,%d,%d) seq=%u raw=(%u,%u) err=(%d,%d) vision_add=(%d,%d) manual_add=(%d,%d) mode=(%u,%u) set=(%d,%d) current=(%d,%d) parsed=%u rx=%u",
           vision_enabled, lower_vision_latched_, target_valid, link_online, rc_error, dbus_toe, diag.behaviour,
           diag.rc_sw0, diag.rc_sw1, diag.rc_ch0, diag.rc_ch1, diag.rc_ch2, diag.rc_ch3,
-          diag.seq, diag.raw_x, diag.raw_y, diag.error_x, diag.error_y, diag.yaw_add_mrad,
+          diag.seq, diag.raw_x, diag.raw_y, diag.error_x, diag.error_y, diag.yaw_add_mrad, diag.pitch_add_mrad,
           diag.manual_yaw_add_mrad, diag.manual_pitch_add_mrad,
           diag.yaw_mode, diag.pitch_mode, diag.yaw_set_mrad, diag.pitch_set_mrad,
           diag.yaw_given_current, diag.pitch_given_current,

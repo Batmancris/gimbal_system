@@ -258,6 +258,7 @@ static void vision_diag_tick(uint32_t tick_ms)
   frame.error_x = diag.error_x;
   frame.error_y = diag.error_y;
   frame.yaw_add_mrad = diag.yaw_add_mrad;
+  frame.pitch_add_mrad = diag.pitch_add_mrad;
   frame.parsed_frames = (uint16_t)(vision_status ? (vision_status->parsed_frames & 0xFFFFU) : 0U);
   frame.rx_bytes = (uint16_t)(vision_status ? (vision_status->rx_bytes & 0xFFFFU) : 0U);
   {

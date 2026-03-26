@@ -28,6 +28,7 @@ hik_camera
 - 下位机主线在 `Gimbal control/`
 - 当前整机稳定通信主链仍然是 `UART`
 - `USB CDC` 已完成基础双向通信与最小 pitch 控制验证，但还没有完全替代 UART 成为默认整机主链
+- 截至 2026-03-26，`rm_gimbal_bridge + Gimbal control` 的 USB CDC 目标跟踪链路已完成一次成功联调，P 轴跟踪与诊断链路已补齐到和 Y 轴一致
 
 ### 仓库结构
 

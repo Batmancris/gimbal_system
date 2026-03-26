@@ -70,6 +70,7 @@ typedef struct
     int16_t error_x;
     int16_t error_y;
     int16_t yaw_add_mrad;
+    int16_t pitch_add_mrad;
     uint16_t parsed_frames;
     uint16_t rx_bytes;
     uint8_t rc_sw0;
