@@ -20,8 +20,9 @@
 ### 当前主线结论
 
 - 下位机主线：是
-- 当前稳定通信主链：`UART`
-- 当前迁移方向：`USB CDC`
+- 遥控主链：`DBUS` / 类 SBUS 遥控帧，`USART3 + DMA + IDLE` 解析
+- 上位机视觉主链：`USB CDC`，进入 `USB_DEVICE/App/usbd_cdc_if.c` 后喂给 `vision_input`
+- 兼容路径：继续保留 UART/共享视觉帧解析，不贸然删除已验证协议
 - 当前建议：继续以本目录作为唯一下位机演进基础
 
 ### 产品化迁移说明
@@ -50,13 +51,14 @@ firmware/stm32_gimbal_control/
 这说明：
 
 - USB CDC 传输层已经双向打通
-- 但它还没有完全替代 UART 成为整机默认主链
-- 当前不应贸然删除 UART 相关路径
+- 当前上位机到下位机视觉链路已经按 USB CDC 使用
+- 当前不应贸然删除 UART 兼容解析或已验证帧格式
 
 ### 关键文件
 
 - `Src/main.c`
 - `Src/freertos.c`
+- `Chassis/remote_control.c`
 - `Src/gimbal_task.c`
 - `Src/vision_input.c`
 - `Src/usb_cdc_test.c`
@@ -66,8 +68,9 @@ firmware/stm32_gimbal_control/
 ### 当前建议
 
 1. 继续把本目录作为唯一正式下位机工程维护
-2. 继续保留 UART 兼容路径直到 USB CDC 全链路验证完成
-3. 若继续推进 USB CDC，请优先复用现有 `vision_input` 与 `usb_cdc_test` 入口
+2. 遥控输入按 DBUS 主链维护，上位机视觉输入按 USB CDC 主链维护
+3. 继续保留 UART/共享帧解析兼容路径直到确认不再需要
+4. 若继续推进 USB CDC，请优先复用现有 `vision_input` 与 `usb_cdc_test` 入口
 
 ### 阅读建议
 
@@ -121,8 +124,9 @@ This firmware is responsible for:
 ### Current Mainline Status
 
 - Lower-level mainline: yes
-- Current validated communication path: `UART`
-- Current migration direction: `USB CDC`
+- Remote-control mainline: `DBUS` / SBUS-like RC frames parsed through `USART3 + DMA + IDLE`
+- Upper-to-lower vision mainline: `USB CDC`, received in `USB_DEVICE/App/usbd_cdc_if.c` and fed into `vision_input`
+- Compatibility path: preserve UART/shared vision-frame parsing until explicitly retired
 - Current recommendation: continue evolving this directory as the only formal lower-level codebase
 
 ### USB CDC Status
@@ -150,13 +154,14 @@ This means:
 
 - the USB CDC transport layer is bidirectionally working
 - the minimal upper-to-lower USB CDC control validation path is also working
-- but it has not fully replaced UART as the default whole-system mainline
-- the UART path should not be removed yet
+- the active upper-to-lower vision path is now documented as USB CDC
+- UART-compatible parsing and the validated frame format should not be removed yet
 
 ### Key Files
 
 - `Src/main.c`
 - `Src/freertos.c`
+- `Chassis/remote_control.c`
 - `Src/gimbal_task.c`
 - `Src/vision_input.c`
 - `Src/usb_cdc_test.c`
@@ -166,8 +171,9 @@ This means:
 ### Current Recommendation
 
 1. Keep this directory as the only formal lower-level firmware project
-2. Preserve UART compatibility until USB CDC is validated across the full system
-3. Reuse the existing `vision_input` and `usb_cdc_test` hooks for continued USB CDC migration
+2. Maintain DBUS for remote control and USB CDC for upper-to-lower vision input
+3. Preserve UART/shared-frame compatibility until it is explicitly retired
+4. Reuse the existing `vision_input` and `usb_cdc_test` hooks for continued USB CDC migration
 
 ### Reading Guidance
 

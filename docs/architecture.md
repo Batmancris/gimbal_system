@@ -13,32 +13,33 @@ tools/                           # capture, labeling, training, evaluation helpe
 scripts/                         # top-level wrapper commands
 ```
 
-Historical/reference areas:
-
-```text
-archive/
-└── historical_code/
-    ├── dev-branch/
-    ├── tianboard_s/
-    ├── _git_migration_backup/
-    └── stm32_gimbal_control.git.BAK-20260319/
-```
+Historical code snapshots are no longer retained in the working tree. Use Git
+history or the remote historical `main` branch when old code needs to be
+inspected.
 
 ## Runtime Chain
 
 ```text
+remote control
+  -> DBUS / USART3 DMA
+  -> remote_control
+  -> gimbal mode / manual control
+
 hik_camera
   -> image_raw / hbmem_img
   -> rm_armor_detection
   -> /dnn_node_sample
   -> rm_gimbal_bridge
-  -> UART
+  -> USB-CDC serial device
   -> vision_input
   -> target_state
   -> gimbal_task
 ```
 
-UART remains the stable communication path. USB CDC is kept for migration validation.
+The current lower-level remote-control path is DBUS-like RC input parsed on
+`USART3 + DMA + IDLE`. The current upper-to-lower vision path uses USB-CDC in
+the active scripts and firmware hooks, while the shared `vision_input` parser
+keeps the validated `0xFA 0xFB ... 0xFC 0xFD` framing compatible.
 
 ## Upper-Level Runtime
 
@@ -72,6 +73,8 @@ firmware/stm32_gimbal_control/
 
 Primary control sources:
 
+- `firmware/stm32_gimbal_control/Chassis/remote_control.c`
+- `firmware/stm32_gimbal_control/USB_DEVICE/App/usbd_cdc_if.c`
 - `firmware/stm32_gimbal_control/Src/vision_input.c`
 - `firmware/stm32_gimbal_control/Src/target_state.c`
 - `firmware/stm32_gimbal_control/Src/gimbal_task.c`
@@ -94,6 +97,6 @@ Keep small metadata, configs, and reports in Git. Do not commit large raw datase
 
 ## Migration Rule
 
-Do not use `archive/historical_code/` for new runtime work. Keep upper-level changes in `ros2_ws/`, firmware changes in `firmware/stm32_gimbal_control/`, and tooling/model workflow changes under `tools/`, `datasets/`, or `models/`.
+Keep upper-level changes in `ros2_ws/`, firmware changes in `firmware/stm32_gimbal_control/`, and tooling/model workflow changes under `tools/`, `datasets/`, or `models/`.
 
 The staged migration details are in `docs/migration_plan.md`.

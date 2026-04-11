@@ -12,4 +12,4 @@ Recommended future contents:
 Current status:
 
 - scaffold only
-- use retained historical training references carefully
+- use Git history or the remote historical `main` branch when old training references are needed

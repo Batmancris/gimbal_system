@@ -21,7 +21,7 @@ Top-level scripts source `scripts/tianaim_paths.sh`.
 
 Default path resolution:
 
-- ROS2 resolves to `ros2_ws/` now that packages exist under `ros2_ws/src/`; historical ROS2 code is archived under `archive/historical_code/dev-branch/`.
+- ROS2 resolves to `ros2_ws/` now that packages exist under `ros2_ws/src/`; historical ROS2 code should be inspected through Git history or the remote historical `main` branch.
 - Firmware resolves to `firmware/stm32_gimbal_control/` now that its `Makefile` exists there.
 
 Override variables:
@@ -76,13 +76,10 @@ Moved active RDK scripts:
 dev-branch/scripts -> ros2_ws/scripts
 ```
 
-Historical/reference ROS2 directories are now archived under `archive/historical_code/dev-branch/`:
-
-- `archive/historical_code/dev-branch/armor_detector/`
-- `archive/historical_code/dev-branch/rm_camera_driver/`
-- `archive/historical_code/dev-branch/rm_camera_driver_nv12/`
-- `archive/historical_code/dev-branch/work_handover/`
-- `archive/historical_code/dev-branch/ultralytics-8.2.103/`
+The old local historical ROS2 snapshot was removed after checking that the
+active package and script inventory was carried forward. Use Git history or the
+remote historical `main` branch for old `armor_detector`, `rm_camera_driver`,
+`rm_camera_driver_nv12`, handover, or training-reference material.
 
 After this move, validate:
 
@@ -113,17 +110,15 @@ Then validate:
 bash scripts/build_firmware_mainline.sh
 ```
 
-Keep UART as the formal stable path during this phase. Do not promote USB CDC to the default path as part of a directory rename.
+The current documented runtime split is DBUS for remote control and USB-CDC
+for upper-to-lower vision frames. Keep the UART-compatible parser and validated
+frame format until hardware validation explicitly retires them.
 
 ## Phase 3: Archive Normalization
 
-Status: completed by moving retained references under `archive/historical_code/`.
+Status: completed by removing the local historical-code snapshot after
+verifying the active ROS2 and firmware paths.
 
-Archived paths:
-
-- `archive/historical_code/tianboard_s/`
-- `archive/historical_code/dev-branch/`
-- `archive/historical_code/_git_migration_backup/`
-- `archive/historical_code/stm32_gimbal_control.git.BAK-20260319/`
-
-Do not add new runtime work under these archived paths.
+Do not reintroduce runtime work under `archive/`. Keep archive content limited
+to audit notes and recovery instructions; use Git history or the remote
+historical `main` branch for old code.

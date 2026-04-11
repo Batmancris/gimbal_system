@@ -6,7 +6,7 @@ Current reality:
 
 - the active packages live under `ros2_ws/src/`
 - the active RDK deployment and runtime scripts live under `ros2_ws/scripts/`
-- historical ROS2 material is retained under `archive/historical_code/dev-branch/`
+- historical ROS2 material should be inspected through Git history or the remote historical `main` branch
 
 Current layout:
 

@@ -9,7 +9,7 @@ This file is the executable development contract for AI coding agents and human 
 - Company context: Tianbot
 - Repository role: integrated product workspace for upper-level perception, lower-level firmware, communication, tooling, and future dataset/model assets
 
-This repository contains both active mainline code and retained historical references. Agents must distinguish between the two before making changes.
+This repository contains the active mainline code after the historical-code snapshot was removed. Use Git history or the remote historical `main` branch if old code must be inspected.
 
 ## 2. Source Of Truth
 
@@ -18,7 +18,7 @@ When information conflicts, use this order:
 1. current source files, launch files, Makefiles, scripts, and package metadata
 2. the nearest `README.md`
 3. `docs/` architecture, migration, and backlog documents
-4. historical handover or backup materials
+4. historical handover or backup materials from Git history or the remote historical `main` branch
 
 Do not treat old split-repository notes, backups, or legacy README variants as the primary source of truth.
 
@@ -44,7 +44,7 @@ Important:
 
 - `ros2_ws/` is the real ROS2 source tree today
 - `firmware/stm32_gimbal_control/` is the real firmware source tree today
-- the ROS2 mainline migration from `archive/historical_code/dev-branch/` to `ros2_ws/` has happened
+- the ROS2 mainline migration to `ros2_ws/` has happened
 - the firmware mainline migration into `firmware/` has happened
 - top-level scripts use `scripts/tianaim_paths.sh` for staged path compatibility
 - `TIANAIM_ROS_WS` may override the local ROS2 workspace path
@@ -59,11 +59,6 @@ Important:
 - includes `src/hik_camera`, `src/rm_armor_detection`, and `src/rm_gimbal_bridge`
 - owns current RDK runtime scripts under `scripts/`
 - default place for upper-level code changes
-
-`archive/historical_code/dev-branch/`
-
-- retained legacy/reference ROS2 area after the mainline migration
-- do not add new upper-level runtime work here unless explicitly maintaining a retained reference
 
 `firmware/stm32_gimbal_control/`
 
@@ -90,26 +85,28 @@ Important:
 - owns architecture, roadmap, and migration records
 - every structural change should update relevant docs
 
-`archive/historical_code/tianboard_s/`
+`archive/`
 
-- archived board-level reference code after historical-code consolidation
-- do not add new runtime work here
-
-`archive/historical_code/_git_migration_backup/`
-
-- backup-only
-- do not treat as active code
+- owns audit notes and recovery notes only
+- do not add runtime code, historical snapshots, or backup repositories here
 
 ## 5. Communication And Interface Contracts
 
 Current verified whole-system path:
 
 ```text
+remote control
+  -> DBUS / USART3 DMA
+  -> STM32 remote_control
+  -> gimbal mode / manual control
+
 hik_camera
   -> rm_armor_detection
   -> rm_gimbal_bridge
-  -> UART
-  -> STM32 gimbal control
+  -> USB-CDC serial device
+  -> STM32 vision_input
+  -> target_state
+  -> gimbal_task
 ```
 
 Upper-level interfaces:
@@ -126,14 +123,17 @@ Current bridge protocol:
 
 Lower-level ingest path:
 
-- UART vision input: `firmware/stm32_gimbal_control/Src/vision_input.c`
+- remote control input: `firmware/stm32_gimbal_control/Chassis/remote_control.c`
+- USB-CDC vision input: `firmware/stm32_gimbal_control/USB_DEVICE/App/usbd_cdc_if.c`
+- shared vision parser: `firmware/stm32_gimbal_control/Src/vision_input.c`
 - target state update: `firmware/stm32_gimbal_control/Src/target_state.c`
 - control application: `firmware/stm32_gimbal_control/Src/gimbal_task.c`
 
-USB CDC rule:
+Communication rule:
 
-- USB CDC is a migration-validation path
-- do not remove or bypass UART mainline without explicit system-level validation
+- DBUS is the current remote-control path into the lower-level firmware
+- USB-CDC is the current upper-to-lower vision path in active scripts and firmware hooks
+- keep UART-compatible parser/framing paths unless explicit system-level validation says they can be removed
 
 ## 6. Build, Run, And Test Commands
 
@@ -195,8 +195,8 @@ Modify carefully and keep scope small:
 Do not casually rewrite:
 
 - protocol framing already validated with hardware
-- UART defaults that are still the stable chain
-- historical directories that may still be referenced for recovery
+- DBUS remote-control defaults and USB-CDC vision defaults that are still the stable chain
+- local historical-code snapshots; use Git history or the remote historical `main` branch instead
 
 ## 8. Naming Rules
 

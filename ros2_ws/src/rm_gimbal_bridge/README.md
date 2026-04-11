@@ -18,14 +18,14 @@
 
 - 订阅检测结果
 - 从候选目标中选择一个发送目标
-- 通过串口发送目标中心点
+- 通过当前 serial 设备发送目标中心点；板端脚本主用 USB-CDC 设备路径
 - 提供整机自动启动 launch
 - 保留 USB CDC ping / pitch test 诊断程序
 
 ### 默认行为
 
 - 默认订阅 `/dnn_node_sample`
-- 默认串口 `/dev/ttyS1`
+- 节点代码默认串口 `/dev/ttyS1`，板端脚本通常覆盖为 USB-CDC by-id 设备
 - 默认波特率 `921600`
 - 默认选择策略为最接近图像中心的目标
 
@@ -46,7 +46,7 @@
 
 - 当前工程内 `min_confidence` 已放宽，用于整链路 bring-up 时减少目标被桥接侧过早过滤
 - `enemy_prefix` 仍然是颜色前缀过滤入口；留空时表示不过滤颜色前缀
-- 该包仍然是当前整机自动瞄准联调时的 UART 主链，不受桌面可视化节点替代
+- 该包仍然是当前整机自动瞄准联调时的上位机桥接主链；当前板端脚本通常把 serial 设备指向 USB-CDC
 - 打开 `log_diag_feedback` 后，会在原始 `diag ...` 日志之外额外输出精简调参日志：
 
 ```text
@@ -62,7 +62,7 @@ tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=... current=(...) seq=...
 ### 当前入口关系
 
 - 上游检测主线：`rm_armor_detection`
-- 下游通信默认主链：`UART -> STM32 gimbal control`
+- 下游通信主链：`USB-CDC serial device -> STM32 vision_input -> gimbal_task`
 - 脚本入口：`scripts/start_rm_bridge_tmux.sh`
 
 ### 运行
@@ -101,14 +101,14 @@ It converts `ai_msgs/msg/PerceptionTargets` into the 8-byte serial protocol curr
 
 - subscribes to detector outputs
 - selects one target from all candidates
-- sends the selected target center through serial
+- sends the selected target center through the current serial device; board-side scripts usually point this at USB CDC
 - provides a whole-system autoaim launch entry
 - preserves USB CDC ping / pitch diagnostic utilities
 
 ### Default Behavior
 
 - subscribes to `/dnn_node_sample`
-- uses `/dev/ttyS1` by default
+- uses `/dev/ttyS1` as the node default, while board-side scripts usually override it with a USB-CDC by-id device
 - uses `921600` baud by default
 - selects the target closest to image center by default
 
@@ -129,7 +129,7 @@ It converts `ai_msgs/msg/PerceptionTargets` into the 8-byte serial protocol curr
 
 - the current in-repo `min_confidence` is relaxed for end-to-end bring-up so valid targets are less likely to be filtered too early by the bridge
 - `enemy_prefix` is still the color-prefix filter; leaving it empty means no color-prefix filtering
-- this package remains the active UART bridge for full-system auto-aim integration, even though a desktop visualizer now exists for debugging
+- this package remains the active upper-to-lower bridge for full-system auto-aim integration; current board-side scripts usually route its serial device to USB CDC
 - when `log_diag_feedback` is enabled, the bridge also prints a compact tuning log:
 
 ```text
@@ -164,11 +164,11 @@ ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py serial_port:=/dev/ttyS1
 
 ## Current Note
 
-- The recent USB CDC validation work did not change the role of `rm_gimbal_bridge`
-- This package remains the current UART mainline bridge for integrated auto-aim runs
+- USB CDC validation did not replace the role of `rm_gimbal_bridge`
+- This package remains the current bridge mainline for integrated auto-aim runs
 
 ### Current Entry Relationships
 
 - upstream detector mainline: `rm_armor_detection`
-- downstream default communication path: `UART -> STM32 gimbal control`
+- downstream default communication path: `USB-CDC serial device -> STM32 vision_input -> gimbal_task`
 - script entry: `scripts/start_rm_bridge_tmux.sh`

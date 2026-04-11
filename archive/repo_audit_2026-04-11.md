@@ -29,7 +29,8 @@ Key locations:
 
 ## Historical Material
 
-Treat these as reference or backup areas unless a task explicitly says otherwise:
+This audit originally recorded the local historical-code snapshot that existed
+during migration:
 
 - `archive/historical_code/dev-branch/`
 - `archive/historical_code/tianboard_s/`
@@ -37,10 +38,11 @@ Treat these as reference or backup areas unless a task explicitly says otherwise
 - `archive/historical_code/_git_migration_backup/`
 - `.git.BAK-*`
 
-The many README files under `archive/historical_code/dev-branch/ultralytics-8.2.103/` are third-party historical material, not active TianAim documentation.
+That local snapshot was removed after verifying that the active ROS2 and
+firmware paths had been carried forward. Use Git history or the remote
+historical `main` branch when old code needs to be inspected.
 
 ## Remaining Cleanup Risk
 
 - Some old references may still mention the previous firmware path with a space-containing name.
-- Historical directories are preserved in place, so search results can include non-mainline code.
-- Large binary assets and old third-party README files can make the tree feel noisier than the active product structure really is.
+- Large model or SDK binary assets can still make the tree heavier than the active source code alone.

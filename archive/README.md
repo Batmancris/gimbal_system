@@ -1,12 +1,12 @@
 # archive
 
-This directory contains archived or reference-only content.
+This directory contains archive notes that are not daily development entry points.
 
-Historical code is grouped under:
+The local `archive/historical_code/` snapshot was removed after the migration
+check confirmed that the active ROS2 and firmware paths had been carried
+forward. Use Git history or the remote historical `main` branch when old code
+needs to be inspected.
 
-- `historical_code/dev-branch/`
-- `historical_code/tianboard_s/`
-- `historical_code/_git_migration_backup/`
-- `historical_code/stm32_gimbal_control.git.BAK-20260319/`
+Current archive contents:
 
-These paths are retained for comparison, recovery, and migration reference. Do not use them for new runtime work.
+- `repo_audit_2026-04-11.md`: one-time migration audit record

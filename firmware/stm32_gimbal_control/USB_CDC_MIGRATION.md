@@ -2,49 +2,43 @@
 
 ## Purpose
 
-This document records the safe migration path for moving the current lower-level
-communication path from UART to USB CDC in `firmware/stm32_gimbal_control`.
+This document records the USB CDC migration state in
+`firmware/stm32_gimbal_control`.
 
 Current status:
 
-- Verified mainline communication: `UART`
-- USB CDC status: experimental bring-up / minimum ping-ack test path
-- Reference implementation source: `../../archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE`
+- Remote-control mainline: `DBUS` / SBUS-like RC frames on `USART3 + DMA + IDLE`
+- Upper-to-lower vision mainline: `USB CDC`
+- UART status: compatibility path for the shared vision frame parser and validated framing
+- Historical USB CDC reference source: Git history or the remote historical `main` branch
 
-The goal is to migrate safely without breaking the currently working gimbal
-firmware control chain.
+The goal is to keep USB CDC as the active upper-to-lower vision path without
+breaking the DBUS remote-control chain or the already validated vision frame
+format.
 
 ## Current Mainline
 
-The current validated lower-level control path is:
+The current lower-level control path is:
 
 - DBUS remote control
 - CAN motor control
 - IMU / attitude pipeline
-- UART-based vision input
+- USB-CDC-based vision input
 
 This means:
 
-- `USART1` is still part of the current validated communication path
-- USB CDC should be added first
-- UART should only be removed after USB CDC is fully validated
+- `Chassis/remote_control.c` owns the DBUS/RC receive path
+- `USB_DEVICE/App/usbd_cdc_if.c` forwards received USB CDC bytes into `VisionInput_FeedBytes(...)`
+- `Src/vision_input.c` owns the shared `0xFA 0xFB ... 0xFC 0xFD` parser
+- UART-compatible pieces should only be removed after explicit hardware validation
 
-## Reference Source in `archive/historical_code/tianboard_s`
+## Historical Reference Source
 
-The following files already exist in the reference project and can be used as
-the migration reference:
+The previous `tianboard_s` local reference snapshot has been removed from this
+working tree. Use Git history or the remote historical `main` branch if the
+original USB CDC reference needs to be inspected again.
 
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.c`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.h`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.c`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.h`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.c`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.h`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.c`
-- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.h`
-- `archive/historical_code/tianboard_s/tianboard_s/Middlewares/ST/STM32_USB_Device_Library/...`
-
-## What `firmware/stm32_gimbal_control` Already Has
+## Protocol Hooks Already Present
 
 The following pieces are already prepared in `firmware/stm32_gimbal_control`:
 
@@ -63,70 +57,53 @@ These files already provide:
 
 This means the protocol-side test framework is already in place.
 
-## What `firmware/stm32_gimbal_control` Still Lacks
+## USB Device Files Already Present
 
-The following USB Device files are still missing from the main lower-level
-project:
+The main lower-level project now contains the USB Device files and Makefile
+entries used by the active CDC path:
 
 - `USB_DEVICE/App/usb_device.c`
 - `USB_DEVICE/App/usb_device.h`
 - `USB_DEVICE/App/usbd_cdc_if.c`
 - `USB_DEVICE/App/usbd_cdc_if.h`
 - `USB_DEVICE/App/usbd_desc.c`
-- `USB_DEVICE/App/usbd_desc.h` (optional depending on CubeMX layout)
+- `USB_DEVICE/App/usbd_desc.h`
 - `USB_DEVICE/Target/usbd_conf.c`
 - `USB_DEVICE/Target/usbd_conf.h`
-- `Middlewares/ST/STM32_USB_Device_Library/...`
-
-In addition, the STM32 CubeMX / IOC configuration still needs:
-
-- `USB_OTG_FS` enabled
-- `USB_DEVICE` middleware enabled
-- `CDC` class enabled
-- `PA11 = USB_DM`
-- `PA12 = USB_DP`
 
 ## Safe Migration Steps
 
 ### Phase 1: USB device bring-up only
 
-1. Generate USB CDC Device files from CubeMX for `firmware/stm32_gimbal_control`
-2. Add generated files into the project Makefile
-3. Replace the weak placeholder `MX_USB_DEVICE_Init()` with the generated one
-4. In generated `usbd_cdc_if.c`, route received bytes into:
+Status: completed in the current working tree.
 
-```c
-VisionInput_FeedBytes(Buf, (uint16_t)(*Len));
-```
-
-5. Implement `UsbCdcTest_SendBytes(...)` by calling the USB CDC transmit path
-
-Success standard:
+Completed standard:
 
 - board enumerates on host
 - ping/ack works over USB CDC
+- generated USB Device files are part of the firmware project
 
 ### Phase 2: Dual-path coexistence
 
 Keep both paths alive:
 
-- UART remains available
-- USB CDC becomes test path
+- DBUS remote control remains available
+- USB CDC carries the upper-to-lower vision path
+- UART-compatible parser/framing code remains available
 
 At this phase:
 
-- do not remove `USART1`
-- do not remove `USART1_IRQHandler`
-- do not remove `MX_USART1_UART_Init()`
+- do not remove `remote_control.c`
+- do not remove `VisionInput_FeedBytes(...)`
+- do not remove the validated `0xFA 0xFB ... 0xFC 0xFD` frame parser
 
 Success standard:
 
 - USB CDC ping/ack stable
-- UART mainline still works
+- DBUS remote-control path still works
+- bridge target frames update `target_state`
 
 ### Phase 3: Vision data over USB CDC
-
-After minimum USB transport is stable:
 
 - route vision frames through USB CDC
 - keep the same parser entry in `VisionInput_FeedBytes()`
@@ -139,16 +116,16 @@ Success standard:
 
 - upper and lower computer exchange vision frames reliably over USB CDC
 
-### Phase 4: UART deprecation
+### Phase 4: UART-compatible path retirement
 
 Only after USB CDC is fully validated:
 
-- update README / docs to mark USB CDC as new mainline
-- then decide whether UART becomes:
+- keep README / docs marking DBUS remote control and USB-CDC vision input as the current mainline
+- then decide whether UART-compatible pieces become:
   - fallback path
   - or removable legacy path
 
-Do not remove UART before this point.
+Do not remove UART-compatible code before this point.
 
 ## Recommended Code Hook Points
 
@@ -183,11 +160,12 @@ No transport-specific parsing should live here beyond the common byte feed.
 
 ## Final Recommendation
 
-Use `archive/historical_code/tianboard_s` as the USB CDC reference source, but keep `firmware/stm32_gimbal_control`
-as the only main lower-level firmware project.
+Use Git history or the remote historical `main` branch as the USB CDC reference
+source when needed, but keep `firmware/stm32_gimbal_control` as the only main
+lower-level firmware project.
 
 That means:
 
-- do not replace `firmware/stm32_gimbal_control` with `archive/historical_code/tianboard_s`
-- do not delete UART yet
+- do not reintroduce a local `archive/historical_code/tianboard_s` runtime tree
+- do not delete UART-compatible parser/framing paths without an explicit hardware validation record
 - migrate transport safely in stages
