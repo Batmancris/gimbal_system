@@ -1,33 +1,97 @@
-# AGENTS Guide
+# AGENTS Contract
 
-This file is the shared repository guide for AI coding agents working in this project.
+This file is the executable development contract for AI coding agents and human contributors working in this repository.
 
-It is intentionally model-agnostic. Model-specific guidance files such as `CLAUDE.md` or other agent notes should extend this file instead of duplicating it.
+## 1. Repository Identity And Scope
 
-## Project Role
+- Historical repository name: `gimbal_system`
+- Preferred future product name: `TianAim`
+- Company context: Tianbot
+- Repository role: integrated product workspace for upper-level perception, lower-level firmware, communication, tooling, and future dataset/model assets
 
-This repository is the current top-level entry for the gimbal system project.
+This repository contains both active mainline code and retained historical references. Agents must distinguish between the two before making changes.
 
-It contains:
+## 2. Source Of Truth
 
-- the active upper-level ROS2 / TROS / RDK-X5 workspace
-- the active lower-level STM32 firmware mainline
-- retained historical and reference projects
-- deployment, integration, and migration support material
+When information conflicts, use this order:
 
-## Source Of Truth
+1. current source files, launch files, Makefiles, scripts, and package metadata
+2. the nearest `README.md`
+3. `docs/` architecture and audit documents
+4. historical handover or backup materials
 
-When documents conflict, use this order:
+Do not treat old split-repository notes, backups, or legacy README variants as the primary source of truth.
 
-1. current source files, launch files, scripts, and service files
-2. the `README.md` in the relevant directory
-3. historical handover notes and retained legacy documents
+## 3. Current Mainline Directories
 
-Do not treat older `Readme.md`, `Readme_zh.md`, or `README_cn.md` files as primary sources unless they explicitly act as redirect pages.
+Current physical mainline paths:
 
-## Mainline Paths
+- ROS2 upper-level mainline: `dev-branch/`
+- STM32 firmware mainline: `Gimbal control/`
 
-The current recommended whole-system path is:
+Current product-oriented transition anchors:
+
+- `ros2_ws/`
+- `firmware/`
+- `datasets/`
+- `models/`
+- `tools/`
+- `scripts/`
+- `docs/`
+- `archive/`
+
+Important:
+
+- `dev-branch/` is still the real ROS2 source tree today
+- `Gimbal control/` is still the real firmware source tree today
+- do not assume the migration to `ros2_ws/` or `firmware/` has already happened
+
+## 4. Directory Ownership
+
+`dev-branch/`
+
+- owns the current ROS2 / TROS / RDK-X5 runtime mainline
+- includes `hik_camera`, `rm_armor_detection`, and `rm_gimbal_bridge`
+- default place for upper-level code changes
+
+`Gimbal control/`
+
+- owns the current STM32 lower-level gimbal control firmware
+- default place for lower-level control and communication-path changes
+
+`tools/`
+
+- owns small helper tools, diagnostics, and offline data workflows
+- safe place for new capture/labeling/training/evaluation helpers
+
+`datasets/`
+
+- owns dataset structure, manifests, and split metadata
+- do not commit large raw datasets unless explicitly intended
+
+`models/`
+
+- owns model metadata, export conventions, and lightweight placeholders
+- avoid committing large binary weights without approval
+
+`docs/`
+
+- owns architecture, audit, roadmap, and migration records
+- every structural change should update relevant docs
+
+`tianboard_s/`
+
+- reference-only board-level code
+- modify only for reference extraction, comparison, or archival clarification
+
+`_git_migration_backup/`
+
+- backup-only
+- do not treat as active code
+
+## 5. Communication And Interface Contracts
+
+Current verified whole-system path:
 
 ```text
 hik_camera
@@ -37,95 +101,170 @@ hik_camera
   -> Gimbal control
 ```
 
-Current repository conclusions:
+Upper-level interfaces:
 
-- `dev-branch/` is the formal upper-level mainline
-- `Gimbal control/` is the formal lower-level mainline
-- `UART` is still the default stable whole-system communication path
-- `USB CDC` is a migration-validation path and must not be assumed to have fully replaced UART
-- `tianboard_s/` is reference-only and is not the place for ongoing mainline feature work
+- camera publishes `image_raw` and `/hbmem_img`
+- detector consumes `/hbmem_img`
+- detector publishes `/dnn_node_sample`
+- bridge consumes `ai_msgs/msg/PerceptionTargets`
 
-## Directory Trust Levels
+Current bridge protocol:
 
-### Active Mainline
+- location: `dev-branch/rm_gimbal_bridge/src/serial_bridge_node.cpp`
+- current frame format: `0xFA 0xFB X_L X_H Y_L Y_H 0xFC 0xFD`
 
-- `dev-branch/`
-- `Gimbal control/`
+Lower-level ingest path:
 
-These are the first places to read and the default places to make mainline changes.
+- UART vision input: `Gimbal control/Src/vision_input.c`
+- target state update: `Gimbal control/Src/target_state.c`
+- control application: `Gimbal control/Src/gimbal_task.c`
 
-### Shared Support
+USB CDC rule:
 
+- USB CDC is a migration-validation path
+- do not remove or bypass UART mainline without explicit system-level validation
+
+## 6. Build, Run, And Test Commands
+
+Top-level convenience entry points:
+
+- ROS2 build: `bash scripts/build_ros2_mainline.sh`
+- firmware build: `bash scripts/build_firmware_mainline.sh`
+- bridge run: `bash scripts/run_ros2_bridge.sh`
+
+Direct current mainline commands:
+
+- ROS2 build:
+  ```bash
+  cd dev-branch
+  source /opt/tros/humble/setup.bash
+  colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
+  ```
+- ROS2 board-side startup:
+  ```bash
+  bash dev-branch/scripts/start_autoaim_tmux.sh
+  ```
+- bridge startup:
+  ```bash
+  bash dev-branch/scripts/start_rm_bridge_tmux.sh
+  ```
+- firmware build:
+  ```bash
+  make -C "Gimbal control"
+  ```
+
+If a change touches:
+
+- only docs: validate links and path references
+- Python tools: run `python3 -m py_compile ...`
+- ROS2 launch/scripts: run shell syntax checks where practical
+- firmware control logic: at minimum compile if toolchain is available
+
+## 7. Safe Vs. Cautious Edit Zones
+
+Usually safe to modify directly:
+
+- `docs/`
 - `tools/`
+- top-level `scripts/`
+- new files under `datasets/` and `models/` that are metadata-oriented
+- README and AGENTS documentation
+
+Modify carefully and keep scope small:
+
 - `dev-branch/scripts/`
-- `dev-branch/rm_interfaces/`
-- `dev-branch/rm_utils/`
+- ROS2 launch/config files
+- `dev-branch/rm_gimbal_bridge/`
+- `Gimbal control/Src/gimbal_task.*`
+- `Gimbal control/Src/vision_input.*`
+- package names, topics, protocol bytes, serial defaults
 
-These support the active mainline but are usually not the top-level runtime entry by themselves.
+Do not casually rewrite:
 
-### Reference Or Historical
+- protocol framing already validated with hardware
+- UART defaults that are still the stable chain
+- historical directories that may still be referenced for recovery
 
-- `tianboard_s/`
-- `dev-branch/armor_detector/`
-- `dev-branch/rm_camera_driver/`
-- `dev-branch/rm_camera_driver_nv12/`
-- `dev-branch/work_handover/`
-- `dev-branch/ultralytics-8.2.103/`
-- `_git_migration_backup/`
+## 8. Naming Rules
 
-These directories may be useful for reference, comparison, or recovery context, but they should not be mistaken for the current default development path.
+- new directories should be lowercase, stable, and contain no spaces
+- new Python modules and scripts should follow PEP 8
+- new product-facing names should align with `TianAim` / `tianaim_*`
+- do not perform wide renames of active runtime packages unless the migration plan and references are updated together
 
-## Recommended Reading Order For Agents
+## 9. Data And Model Directory Contract
 
-When starting a new task, read in this order unless the user gives a more specific scope:
+Dataset structure:
 
-1. `README.md`
-2. `dev-branch/README.md`
-3. `dev-branch/scripts/README.md`
-4. `Gimbal control/README.md`
-5. the package-level `README.md` closest to the files you will touch
+- `datasets/raw/`
+- `datasets/labeled/`
+- `datasets/splits/`
+- `datasets/manifests/`
 
-## Common Mistakes To Avoid
+Tool structure:
 
-- Do not assume the old split-repository name `rm_armor_tracker` is still the active project structure.
-- Do not treat `USB CDC` as the default runtime communication path unless the user explicitly says the migration is complete.
-- Do not continue feature development in `tianboard_s/` unless the task is specifically about reference extraction or archival cleanup.
-- Do not treat historical screenshots, handover notes, or migration backups as the primary source of truth.
-- Do not assume a retained third-party source snapshot such as `ultralytics-8.2.103/` is part of the active runtime chain.
+- `tools/capture/`
+- `tools/labeling/`
+- `tools/training/`
+- `tools/evaluation/`
 
-## Documentation Expectations
+Model structure:
 
-When editing or adding documentation:
+- `models/README.md` documents storage and export expectations
 
-- prefer bilingual `README.md` files for primary project-facing docs
-- keep older language-split files as redirect pages instead of full independent documents when possible
-- describe current role, current boundaries, reading guidance, and mainline relationship clearly
-- avoid reviving outdated commands, old repository names, or stale package relationships
+Manifest expectations:
 
-## Change Scope Expectations
+- every capture session should emit a manifest
+- file naming should be timestamp-based and session-stable
+- calibration, environment, and camera metadata should be recorded whenever available
 
-Unless the user explicitly asks otherwise:
+## 10. Documentation Sync Requirement
 
-- prefer minimal, targeted changes
-- do not rewrite unrelated historical material
-- do not delete retained reference directories only because they are not mainline
-- do not change source code when the task is documentation-only
+Any change to one of these areas must update the nearest relevant docs in the same turn when practical:
 
-## Git And Submission Expectations
+- directory structure
+- build/run commands
+- protocol entry points
+- dataset conventions
+- naming or ownership expectations
 
-When making changes:
+At minimum, keep these in sync:
 
-- keep documentation-only changes in documentation-only commits when practical
-- avoid mixing repository cleanup guidance with unrelated code edits
-- preserve user changes you did not create
-- do not rewrite history unless the user explicitly requests it
+- `README.md`
+- `AGENTS.md`
+- `docs/repo_audit.md`
+- `docs/architecture.md`
 
-## If You Need A Model-Specific Layer
+## 11. Minimum Verification After Changes
 
-If a future agent-specific file is added, such as `CLAUDE.md`, it should usually contain:
+After code or script changes, agents should perform the minimum practical verification:
 
-- output style preferences for that model
-- review or planning habits specific to that model
-- any extra reminders about how that model should consume `AGENTS.md`
+- `python3 -m py_compile` for changed Python tools/scripts
+- `bash -n` for changed shell scripts
+- `colcon build --packages-select ...` for affected ROS2 packages when dependencies are available
+- `make -C "Gimbal control"` for firmware changes when the ARM toolchain is available
 
-It should not duplicate the repository facts already written here unless duplication is truly necessary.
+If verification cannot be completed, state exactly what blocked it.
+
+## 12. Migration Guidance
+
+Preferred future structure:
+
+```text
+/
+├── docs/
+├── firmware/
+├── ros2_ws/
+├── datasets/
+├── models/
+├── tools/
+├── scripts/
+└── archive/
+```
+
+Migration principle:
+
+- add transition layers first
+- move active code only in reviewable, compatibility-preserving steps
+- update README, scripts, and launch references together
+- do not break the verified runtime chain for a cosmetic rename

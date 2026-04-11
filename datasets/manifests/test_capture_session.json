@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "project": "TianAim",
+  "session_id": "test_capture_session",
+  "camera": {
+    "vendor": "Hikvision",
+    "model": "TODO",
+    "serial_number": "TODO",
+    "camera_id": "cam0"
+  },
+  "capture_mode": "session_scaffold_only",
+  "image_format": "jpg",
+  "labels_expected": [
+    "vehicle",
+    "armor"
+  ],
+  "environment": {
+    "site": "TODO",
+    "lighting": "TODO",
+    "operator": "TODO"
+  },
+  "generated_at": "2026-03-27T06:06:39.471291+00:00",
+  "frame_count": 0,
+  "frames": [],
+  "todo": [
+    "Integrate real Hik SDK adapter for live capture.",
+    "Record exposure, gain, and calibration metadata when available."
+  ]
+}

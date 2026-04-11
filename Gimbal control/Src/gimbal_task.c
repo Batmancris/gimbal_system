@@ -72,6 +72,12 @@ uint32_t gimbal_high_water;
 static gimbal_vision_diag_t g_gimbal_vision_diag = {0};
 static vision_pid_t g_vision_yaw_pid = {0};
 static vision_pid_t g_vision_pitch_pid = {0};
+static const vision_controller_profile_t g_vision_controller_profile = {
+    .type = VISION_CONTROLLER_MAINLINE_TYPE,
+    .enable_prediction = 0U,
+    .reserved0 = 0U,
+    .reserved1 = 0U,
+};
 
 
 /**
@@ -152,6 +158,7 @@ static uint8_t gimbal_apply_uart_diagnostic(gimbal_control_t *set_control, fp32 
 static void vision_pid_init(vision_pid_t *pid, fp32 kp, fp32 ki, fp32 kd, fp32 maxout, fp32 max_iout);
 static void vision_pid_reset(vision_pid_t *pid);
 static fp32 vision_pid_calc(vision_pid_t *pid, fp32 err);
+static fp32 vision_controller_calc(vision_pid_t *pid, fp32 err, const vision_controller_profile_t *profile);
 /**
   * @brief          control loop, according to control set-point, calculate motor current, 
   *                 motor current will be sent to motor
@@ -1006,8 +1013,15 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
     }
     else
     {
-        smoothed_error_x += (error_x - smoothed_error_x) * VISION_ERROR_SMOOTH_ALPHA;
-        smoothed_error_y += (error_y - smoothed_error_y) * VISION_ERROR_SMOOTH_ALPHA;
+        fp32 error_alpha = VISION_ERROR_SMOOTH_ALPHA;
+        if (fabsf(error_x) > VISION_FAST_ERROR_THRESHOLD ||
+            fabsf(error_y) > VISION_FAST_ERROR_THRESHOLD)
+        {
+            error_alpha = VISION_ERROR_FAST_ALPHA;
+        }
+
+        smoothed_error_x += (error_x - smoothed_error_x) * error_alpha;
+        smoothed_error_y += (error_y - smoothed_error_y) * error_alpha;
     }
 
     error_x = smoothed_error_x;
@@ -1044,8 +1058,10 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         }
     }
 
-    applied_yaw = -vision_limit_increment(vision_pid_calc(&g_vision_yaw_pid, error_x) * engage_ratio);
-    applied_pitch = -vision_limit_increment(vision_pid_calc(&g_vision_pitch_pid, error_y) * engage_ratio);
+    applied_yaw = -vision_limit_increment(
+      vision_controller_calc(&g_vision_yaw_pid, error_x, &g_vision_controller_profile) * engage_ratio);
+    applied_pitch = -vision_limit_increment(
+      vision_controller_calc(&g_vision_pitch_pid, error_y, &g_vision_controller_profile) * engage_ratio);
     {
         fp32 next_pitch_add = accumulated_pitch_add + applied_pitch;
         if (next_pitch_add > GIMBAL_PITCH_FOLLOW_MAX_ANGLE)
@@ -1157,6 +1173,32 @@ static fp32 vision_pid_calc(vision_pid_t *pid, fp32 err)
     abs_limit(&out, pid->max_out);
     pid->last_err = err;
     return out;
+}
+
+static fp32 vision_controller_calc(vision_pid_t *pid, fp32 err, const vision_controller_profile_t *profile)
+{
+    if (profile == NULL)
+    {
+        return vision_pid_calc(pid, err);
+    }
+
+    switch (profile->type)
+    {
+    case VISION_CONTROLLER_P:
+    case VISION_CONTROLLER_PI_PREDICT:
+        // Current mainline keeps the validated PID-shaped hook. Prediction or
+        // estimator logic should be inserted before this call site once the
+        // full state and saturation behavior are hardware-validated.
+        return vision_pid_calc(pid, err);
+
+    case VISION_CONTROLLER_LQR_EXPERIMENT:
+        // Experimental controllers remain opt-in and currently fall back to
+        // the validated path until the experiment line is implemented.
+        return vision_pid_calc(pid, err);
+
+    default:
+        return vision_pid_calc(pid, err);
+    }
 }
 
 static fp32 vision_limit_increment(fp32 add)

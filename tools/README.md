@@ -6,40 +6,38 @@
 
 ### 简介
 
-`tools` 目录保存与主线源码解耦的辅助工具和诊断脚本。
+`tools/` 保存与主线源码解耦的辅助工具、离线数据流程和诊断脚本。
 
-### 当前内容
+### 当前结构
 
 - `dbus_diag_reader.py`
-  用于读取或排查与 DBUS 相关的诊断信息
+  DBUS 诊断读取工具
+- `capture/`
+  数据采集工具骨架
+- `labeling/`
+  标注流程约定
+- `training/`
+  训练流程约定
+- `evaluation/`
+  评估流程约定
 
-### 当前定位
+### 设计原则
 
-- 主线源码：否
-- 使用方式：按需单独调用
-- 适合用途：排障、观测、辅助验证
-
-### 说明
-
-这里的工具脚本应尽量保持“小而明确”，不要替代主线包内的正式运行入口。
+- 工具应小而明确
+- 不直接替代主线 ROS2 包和固件入口
+- 新增工具优先使用无空格、全小写目录名
+- 与数据、模型相关的工具应优先落在本目录，而不是塞回历史工作区
 
 ## English
 
-### Overview
+`tools/` stores helper tools, offline workflows, and diagnostics that are decoupled from the runtime mainline.
 
-The `tools` directory stores helper tools and diagnostics that are decoupled from the mainline source trees.
-
-### Current Contents
+Current areas:
 
 - `dbus_diag_reader.py`
-  used for DBUS-related reading or diagnostic inspection
+- `capture/`
+- `labeling/`
+- `training/`
+- `evaluation/`
 
-### Current Role
-
-- mainline source code: no
-- usage mode: run only when needed
-- best used for: debugging, observation, and auxiliary validation
-
-### Note
-
-Scripts in this directory should stay small and focused, and should not replace the formal runtime entry points of the mainline packages.
+New tooling should stay focused, stable, and product-oriented.

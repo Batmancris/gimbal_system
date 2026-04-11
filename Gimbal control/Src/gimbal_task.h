@@ -124,20 +124,28 @@
 #define VISION_Y_DEADBAND         8.0f
 #define VISION_YAW_PIXEL_TO_RAD   0.000014f
 #define VISION_PITCH_PIXEL_TO_RAD 0.000014f
-#define VISION_YAW_PID_KP         0.000070f
+#define VISION_YAW_PID_KP         0.000095f
 #define VISION_YAW_PID_KI         0.0f
 #define VISION_YAW_PID_KD         0.0f
-#define VISION_PITCH_PID_KP       0.000070f
+#define VISION_PITCH_PID_KP       0.000090f
 #define VISION_PITCH_PID_KI       0.0f
 #define VISION_PITCH_PID_KD       0.0f
 #define VISION_PID_MAX_IOUT       0.0f
 #define VISION_PID_MAX_OUT        VISION_MAX_ANGLE_STEP
-#define VISION_MAX_ANGLE_STEP     0.0080f
-#define VISION_ERROR_SMOOTH_ALPHA 0.16f
+#define VISION_MAX_ANGLE_STEP     0.0120f
+#define VISION_ERROR_SMOOTH_ALPHA 0.24f
+#define VISION_ERROR_FAST_ALPHA   0.55f
+#define VISION_FAST_ERROR_THRESHOLD 96.0f
 #define GIMBAL_PITCH_FOLLOW_MAX_ANGLE 0.7853982f
 
 #define VISION_ENGAGE_STABLE_FRAMES 2U
-#define VISION_RAMP_STEP           0.25f
+#define VISION_RAMP_STEP           0.40f
+
+// Keep the validated PID-shaped hook as the mainline path. More advanced
+// estimators or controllers should be introduced behind explicit profiles
+// instead of rewriting the working control loop in place.
+#define VISION_CONTROLLER_MAINLINE_TYPE   VISION_CONTROLLER_P
+#define VISION_CONTROLLER_EXPERIMENT_TYPE VISION_CONTROLLER_PI_PREDICT
 
 #define UART_DIAGNOSTIC_MODE      0
 #define UART_DIAG_YAW_STEP        0.08f
@@ -268,6 +276,21 @@ typedef struct
     fp32 last_err;
     uint8_t initialized;
 } vision_pid_t;
+
+typedef enum
+{
+    VISION_CONTROLLER_P = 0,
+    VISION_CONTROLLER_PI_PREDICT = 1,
+    VISION_CONTROLLER_LQR_EXPERIMENT = 2,
+} vision_controller_type_e;
+
+typedef struct
+{
+    vision_controller_type_e type;
+    uint8_t enable_prediction;
+    uint8_t reserved0;
+    uint8_t reserved1;
+} vision_controller_profile_t;
 
 typedef struct
 {
