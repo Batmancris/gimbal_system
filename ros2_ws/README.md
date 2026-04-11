@@ -1,15 +1,18 @@
 # ros2_ws
 
-This directory is the product-facing transition anchor for the future ROS2 workspace layout.
+This directory is the active ROS2 / TROS / RDK-X5 workspace.
 
 Current reality:
 
-- the active workspace is still `dev-branch/`
+- the active packages live under `ros2_ws/src/`
+- the active RDK deployment and runtime scripts live under `ros2_ws/scripts/`
+- historical ROS2 material is retained under `archive/historical_code/dev-branch/`
 
-Target direction:
+Current layout:
 
 ```text
 ros2_ws/
+├── scripts/
 └── src/
     ├── hik_camera
     ├── rm_armor_detection
@@ -18,8 +21,11 @@ ros2_ws/
     └── rm_utils
 ```
 
-Why it is not moved yet:
+Build:
 
-- existing deployment scripts still assume `dev-branch/`
-- current `colcon` and remote bring-up flow already work there
-- a directory move should happen only with coordinated script and README updates
+```bash
+source /opt/tros/humble/setup.bash
+colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
+```
+
+The top-level wrapper `bash scripts/build_ros2_mainline.sh` resolves to this workspace by default.

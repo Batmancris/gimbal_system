@@ -6,7 +6,7 @@ This document records the STM32 USB CDC bring-up and diagnostic progress complet
 
 ## What Was Added
 
-- USB Device / CDC base files were migrated into `Gimbal control`
+- USB Device / CDC base files were migrated into `firmware/stm32_gimbal_control`
 - HAL PCD / LL USB drivers were added to the STM32 HAL tree
 - `vision_input` gained a unified byte feed entry for future UART/USB coexistence
 - `usb_cdc_test` diagnostic module was added

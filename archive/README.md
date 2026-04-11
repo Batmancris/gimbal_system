@@ -1,15 +1,12 @@
 # archive
 
-This directory documents what should eventually be treated as archived or reference-only content.
+This directory contains archived or reference-only content.
 
-Current archive candidates:
+Historical code is grouped under:
 
-- `tianboard_s/`
-- `dev-branch/armor_detector/`
-- `dev-branch/rm_camera_driver/`
-- `dev-branch/rm_camera_driver_nv12/`
-- `dev-branch/work_handover/`
-- `dev-branch/ultralytics-8.2.103/`
-- `_git_migration_backup/`
+- `historical_code/dev-branch/`
+- `historical_code/tianboard_s/`
+- `historical_code/_git_migration_backup/`
+- `historical_code/stm32_gimbal_control.git.BAK-20260319/`
 
-These paths have not been physically moved in this update to avoid breaking existing references.
+These paths are retained for comparison, recovery, and migration reference. Do not use them for new runtime work.

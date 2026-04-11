@@ -1,10 +1,10 @@
 # firmware
 
-This directory is the product-facing transition anchor for the future firmware layout.
+This directory contains the active product-facing firmware layout.
 
 Current reality:
 
-- the active firmware project is still `Gimbal control/`
+- the active firmware project is `firmware/stm32_gimbal_control/`
 
 Target direction:
 
@@ -13,8 +13,8 @@ firmware/
 └── stm32_gimbal_control/
 ```
 
-Why it is not moved yet:
+Migration status:
 
-- the current Makefile and local workflows already reference `Gimbal control/`
-- the current directory name contains a space, which is not ideal, but renaming it prematurely would be high risk
-- the move should happen only after validating local and remote references
+- the STM32 firmware mainline has moved out of the old space-containing path
+- top-level wrappers now resolve firmware builds to `firmware/stm32_gimbal_control/`
+- keep UART as the stable communication mainline unless system-level validation promotes another path

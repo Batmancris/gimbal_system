@@ -8,6 +8,8 @@ Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/home/sunrise/rm_ws
 Environment=REMOTE_WS=/home/sunrise/rm_ws
+Environment=REMOTE_SRC_DIR=/home/sunrise/rm_ws/src
+Environment=REMOTE_SCRIPT_DIR=/home/sunrise/rm_ws/src/scripts
 Environment=TMUX_SOCKET=bridge
 Environment=SERIAL_PORT=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
 Environment=ENEMY_PREFIX=blue_
@@ -15,7 +17,7 @@ Environment=BRIDGE_DELAY_SEC=4
 Environment=WAIT_FOR_SERIAL_SEC=15
 Environment=DETECTOR_READY_TIMEOUT_SEC=10
 Environment=BRIDGE_REQUIRE_VISION_ENABLED=false
-ExecStart=/bin/bash /home/sunrise/rm_ws/src/scripts/start_rm_bridge_tmux.sh
+ExecStart=/bin/bash -lc 'exec "${REMOTE_SCRIPT_DIR}/start_rm_bridge_tmux.sh"'
 ExecStop=/bin/bash -lc 'tmux -L bridge kill-session -t rm_bridge 2>/dev/null || true; pkill -f rm_gimbal_bridge_node 2>/dev/null || true'
 TimeoutStartSec=0
 

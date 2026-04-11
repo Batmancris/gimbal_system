@@ -1,4 +1,4 @@
-# Gimbal control
+# STM32 gimbal control
 
 [中文](#中文) | [English](#english)
 
@@ -6,7 +6,7 @@
 
 ### 简介
 
-`Gimbal control` 是当前项目唯一可信的下位机主线工程，运行在 STM32F407 / DJI C 板一类控制板上。
+`firmware/stm32_gimbal_control` 是当前项目唯一可信的下位机主线工程，运行在 STM32F407 / DJI C 板一类控制板上。
 
 该工程主要负责：
 
@@ -26,15 +26,13 @@
 
 ### 产品化迁移说明
 
-`Gimbal control` 目前仍然是实际固件主线目录，但目录名包含空格，不适合作为长期产品仓结构。
-
-当前仓库已经新增根目录 `firmware/` 作为迁移锚点，后续建议把本工程分步迁移到：
+本工程已经从旧的空格目录迁移到：
 
 ```text
 firmware/stm32_gimbal_control/
 ```
 
-在完成 Makefile、IDE、文档和外部脚本引用统一前，不建议直接重命名本目录。
+后续新增固件代码、控制逻辑和通信路径修改都应以本目录为准。
 
 ### USB CDC 当前状态
 
@@ -46,7 +44,7 @@ firmware/stm32_gimbal_control/
 - 主机到 STM32 的接收路径已打通
 - 下位机可对收到的数据进行回显
 - 已增加 pitch swing test with safety switch 诊断能力
-- 已完成 `rm_gimbal_bridge -> USB CDC -> Gimbal control` 的一次成功目标跟踪联调
+- 已完成 `rm_gimbal_bridge -> USB CDC -> STM32 gimbal control` 的一次成功目标跟踪联调
 - P 轴视觉跟踪比例与诊断链路已补齐到和 Y 轴一致，现场联调已验证有效
 
 这说明：
@@ -73,8 +71,8 @@ firmware/stm32_gimbal_control/
 
 ### 阅读建议
 
-- 若你在看整机链路，请同时参考上位机 `dev-branch/README.md`
-- 若你在看 USB CDC 迁移，请同时看 `dev-branch/scripts/README.md`
+- 若你在看整机链路，请同时参考上位机 `ros2_ws/README.md`
+- 若你在看 USB CDC 迁移，请同时看 `ros2_ws/scripts/README.md`
 
 ### 视觉跟随调参记录
 
@@ -109,7 +107,7 @@ firmware/stm32_gimbal_control/
 
 ### Overview
 
-`Gimbal control` is the only trusted lower-level firmware mainline in the current project, targeting STM32F407 / DJI C-board class controllers.
+`firmware/stm32_gimbal_control` is the only trusted lower-level firmware mainline in the current project, targeting STM32F407 / DJI C-board class controllers.
 
 This firmware is responsible for:
 
@@ -139,7 +137,7 @@ At the current workspace state, USB CDC already provides:
 - pitch swing test support with a safety switch
 - a verified minimal pitch control validation path from upper-level host to lower-level firmware
 - the ability to switch back to the default remote/UART path after testing
-- one successful end-to-end target-tracking integration with `rm_gimbal_bridge -> USB CDC -> Gimbal control`
+- one successful end-to-end target-tracking integration with `rm_gimbal_bridge -> USB CDC -> STM32 gimbal control`
 - pitch visual tracking gain and diagnostic visibility aligned with yaw, verified in on-device integration
 
 This validation path specifically keeps:
@@ -173,8 +171,8 @@ This means:
 
 ### Reading Guidance
 
-- for the full system path, read this together with `dev-branch/README.md`
-- for USB CDC migration and validation scripts, also read `dev-branch/scripts/README.md`
+- for the full system path, read this together with `ros2_ws/README.md`
+- for USB CDC migration and validation scripts, also read `ros2_ws/scripts/README.md`
 
 ### Vision Follow Tuning Notes
 

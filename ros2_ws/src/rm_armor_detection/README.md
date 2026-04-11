@@ -80,7 +80,7 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 
 ### 阅读建议
 
-- 若你在看上位机总链路，请先读 `dev-branch/README.md`
+- 若你在看上位机总链路，请先读 `ros2_ws/README.md`
 - 若你在看部署和启动入口，请同时看 `scripts/README.md`
 - 若你在看下发链路，请继续读 `rm_gimbal_bridge/README.md`
 
@@ -162,6 +162,6 @@ The visualizer window:
 
 ### Reading Guidance
 
-- for the full upper-level chain, start with `dev-branch/README.md`
+- for the full upper-level chain, start with `ros2_ws/README.md`
 - for deployment and startup entry points, read `scripts/README.md` together with this file
 - for the downstream target-delivery path, continue with `rm_gimbal_bridge/README.md`

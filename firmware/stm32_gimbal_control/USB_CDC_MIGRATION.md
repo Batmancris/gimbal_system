@@ -3,13 +3,13 @@
 ## Purpose
 
 This document records the safe migration path for moving the current lower-level
-communication path from UART to USB CDC in `Gimbal control`.
+communication path from UART to USB CDC in `firmware/stm32_gimbal_control`.
 
 Current status:
 
 - Verified mainline communication: `UART`
 - USB CDC status: experimental bring-up / minimum ping-ack test path
-- Reference implementation source: `../tianboard_s/tianboard_s/USB_DEVICE`
+- Reference implementation source: `../../archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE`
 
 The goal is to migrate safely without breaking the currently working gimbal
 firmware control chain.
@@ -29,24 +29,24 @@ This means:
 - USB CDC should be added first
 - UART should only be removed after USB CDC is fully validated
 
-## Reference Source in `tianboard_s`
+## Reference Source in `archive/historical_code/tianboard_s`
 
 The following files already exist in the reference project and can be used as
 the migration reference:
 
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.c`
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.h`
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.c`
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.h`
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.c`
-- `tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.h`
-- `tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.c`
-- `tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.h`
-- `tianboard_s/tianboard_s/Middlewares/ST/STM32_USB_Device_Library/...`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.c`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usb_device.h`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.c`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_cdc_if.h`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.c`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/App/usbd_desc.h`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.c`
+- `archive/historical_code/tianboard_s/tianboard_s/USB_DEVICE/Target/usbd_conf.h`
+- `archive/historical_code/tianboard_s/tianboard_s/Middlewares/ST/STM32_USB_Device_Library/...`
 
-## What `Gimbal control` Already Has
+## What `firmware/stm32_gimbal_control` Already Has
 
-The following pieces are already prepared in `Gimbal control`:
+The following pieces are already prepared in `firmware/stm32_gimbal_control`:
 
 - `Src/usb_cdc_test.c`
 - `Src/usb_cdc_test.h`
@@ -63,7 +63,7 @@ These files already provide:
 
 This means the protocol-side test framework is already in place.
 
-## What `Gimbal control` Still Lacks
+## What `firmware/stm32_gimbal_control` Still Lacks
 
 The following USB Device files are still missing from the main lower-level
 project:
@@ -90,7 +90,7 @@ In addition, the STM32 CubeMX / IOC configuration still needs:
 
 ### Phase 1: USB device bring-up only
 
-1. Generate USB CDC Device files from CubeMX for `Gimbal control`
+1. Generate USB CDC Device files from CubeMX for `firmware/stm32_gimbal_control`
 2. Add generated files into the project Makefile
 3. Replace the weak placeholder `MX_USB_DEVICE_Init()` with the generated one
 4. In generated `usbd_cdc_if.c`, route received bytes into:
@@ -183,11 +183,11 @@ No transport-specific parsing should live here beyond the common byte feed.
 
 ## Final Recommendation
 
-Use `tianboard_s` as the USB CDC reference source, but keep `Gimbal control`
+Use `archive/historical_code/tianboard_s` as the USB CDC reference source, but keep `firmware/stm32_gimbal_control`
 as the only main lower-level firmware project.
 
 That means:
 
-- do not replace `Gimbal control` with `tianboard_s`
+- do not replace `firmware/stm32_gimbal_control` with `archive/historical_code/tianboard_s`
 - do not delete UART yet
 - migrate transport safely in stages

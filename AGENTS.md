@@ -17,7 +17,7 @@ When information conflicts, use this order:
 
 1. current source files, launch files, Makefiles, scripts, and package metadata
 2. the nearest `README.md`
-3. `docs/` architecture and audit documents
+3. `docs/` architecture, migration, and backlog documents
 4. historical handover or backup materials
 
 Do not treat old split-repository notes, backups, or legacy README variants as the primary source of truth.
@@ -26,8 +26,8 @@ Do not treat old split-repository notes, backups, or legacy README variants as t
 
 Current physical mainline paths:
 
-- ROS2 upper-level mainline: `dev-branch/`
-- STM32 firmware mainline: `Gimbal control/`
+- ROS2 upper-level mainline: `ros2_ws/`
+- STM32 firmware mainline: `firmware/stm32_gimbal_control/`
 
 Current product-oriented transition anchors:
 
@@ -42,19 +42,30 @@ Current product-oriented transition anchors:
 
 Important:
 
-- `dev-branch/` is still the real ROS2 source tree today
-- `Gimbal control/` is still the real firmware source tree today
-- do not assume the migration to `ros2_ws/` or `firmware/` has already happened
+- `ros2_ws/` is the real ROS2 source tree today
+- `firmware/stm32_gimbal_control/` is the real firmware source tree today
+- the ROS2 mainline migration from `archive/historical_code/dev-branch/` to `ros2_ws/` has happened
+- the firmware mainline migration into `firmware/` has happened
+- top-level scripts use `scripts/tianaim_paths.sh` for staged path compatibility
+- `TIANAIM_ROS_WS` may override the local ROS2 workspace path
+- `TIANAIM_FIRMWARE_DIR` may override the local firmware project path
+- RDK scripts may override `REMOTE_SRC_DIR` and `REMOTE_SCRIPT_DIR`, but default to the current `/home/sunrise/rm_ws/src` layout
 
 ## 4. Directory Ownership
 
-`dev-branch/`
+`ros2_ws/`
 
 - owns the current ROS2 / TROS / RDK-X5 runtime mainline
-- includes `hik_camera`, `rm_armor_detection`, and `rm_gimbal_bridge`
+- includes `src/hik_camera`, `src/rm_armor_detection`, and `src/rm_gimbal_bridge`
+- owns current RDK runtime scripts under `scripts/`
 - default place for upper-level code changes
 
-`Gimbal control/`
+`archive/historical_code/dev-branch/`
+
+- retained legacy/reference ROS2 area after the mainline migration
+- do not add new upper-level runtime work here unless explicitly maintaining a retained reference
+
+`firmware/stm32_gimbal_control/`
 
 - owns the current STM32 lower-level gimbal control firmware
 - default place for lower-level control and communication-path changes
@@ -76,15 +87,15 @@ Important:
 
 `docs/`
 
-- owns architecture, audit, roadmap, and migration records
+- owns architecture, roadmap, and migration records
 - every structural change should update relevant docs
 
-`tianboard_s/`
+`archive/historical_code/tianboard_s/`
 
-- reference-only board-level code
-- modify only for reference extraction, comparison, or archival clarification
+- archived board-level reference code after historical-code consolidation
+- do not add new runtime work here
 
-`_git_migration_backup/`
+`archive/historical_code/_git_migration_backup/`
 
 - backup-only
 - do not treat as active code
@@ -98,7 +109,7 @@ hik_camera
   -> rm_armor_detection
   -> rm_gimbal_bridge
   -> UART
-  -> Gimbal control
+  -> STM32 gimbal control
 ```
 
 Upper-level interfaces:
@@ -110,14 +121,14 @@ Upper-level interfaces:
 
 Current bridge protocol:
 
-- location: `dev-branch/rm_gimbal_bridge/src/serial_bridge_node.cpp`
+- location: `ros2_ws/src/rm_gimbal_bridge/src/serial_bridge_node.cpp`
 - current frame format: `0xFA 0xFB X_L X_H Y_L Y_H 0xFC 0xFD`
 
 Lower-level ingest path:
 
-- UART vision input: `Gimbal control/Src/vision_input.c`
-- target state update: `Gimbal control/Src/target_state.c`
-- control application: `Gimbal control/Src/gimbal_task.c`
+- UART vision input: `firmware/stm32_gimbal_control/Src/vision_input.c`
+- target state update: `firmware/stm32_gimbal_control/Src/target_state.c`
+- control application: `firmware/stm32_gimbal_control/Src/gimbal_task.c`
 
 USB CDC rule:
 
@@ -132,25 +143,27 @@ Top-level convenience entry points:
 - firmware build: `bash scripts/build_firmware_mainline.sh`
 - bridge run: `bash scripts/run_ros2_bridge.sh`
 
+These wrappers should be preferred during migration because they preserve compatibility with both the current physical paths and the future product-oriented paths.
+
 Direct current mainline commands:
 
 - ROS2 build:
   ```bash
-  cd dev-branch
+  cd ros2_ws
   source /opt/tros/humble/setup.bash
   colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
   ```
 - ROS2 board-side startup:
   ```bash
-  bash dev-branch/scripts/start_autoaim_tmux.sh
+  bash ros2_ws/scripts/start_autoaim_tmux.sh
   ```
 - bridge startup:
   ```bash
-  bash dev-branch/scripts/start_rm_bridge_tmux.sh
+  bash ros2_ws/scripts/start_rm_bridge_tmux.sh
   ```
 - firmware build:
   ```bash
-  make -C "Gimbal control"
+  make -C "firmware/stm32_gimbal_control"
   ```
 
 If a change touches:
@@ -172,11 +185,11 @@ Usually safe to modify directly:
 
 Modify carefully and keep scope small:
 
-- `dev-branch/scripts/`
+- `ros2_ws/scripts/`
 - ROS2 launch/config files
-- `dev-branch/rm_gimbal_bridge/`
-- `Gimbal control/Src/gimbal_task.*`
-- `Gimbal control/Src/vision_input.*`
+- `ros2_ws/src/rm_gimbal_bridge/`
+- `firmware/stm32_gimbal_control/Src/gimbal_task.*`
+- `firmware/stm32_gimbal_control/Src/vision_input.*`
 - package names, topics, protocol bytes, serial defaults
 
 Do not casually rewrite:
@@ -232,8 +245,11 @@ At minimum, keep these in sync:
 
 - `README.md`
 - `AGENTS.md`
-- `docs/repo_audit.md`
 - `docs/architecture.md`
+- `docs/migration_plan.md` when migration state changes
+- `docs/backlog.md` when planned work changes
+
+Historical audit records belong under `archive/`, for example `archive/repo_audit_2026-04-11.md`; do not treat archived audit files as daily documentation entry points.
 
 ## 11. Minimum Verification After Changes
 
@@ -242,7 +258,7 @@ After code or script changes, agents should perform the minimum practical verifi
 - `python3 -m py_compile` for changed Python tools/scripts
 - `bash -n` for changed shell scripts
 - `colcon build --packages-select ...` for affected ROS2 packages when dependencies are available
-- `make -C "Gimbal control"` for firmware changes when the ARM toolchain is available
+- `make -C "firmware/stm32_gimbal_control"` for firmware changes when the ARM toolchain is available
 
 If verification cannot be completed, state exactly what blocked it.
 

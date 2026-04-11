@@ -27,6 +27,7 @@
 - `rm-bridge.service` 用于桥接链路单独自启动，并提供串口等待和 detector 就绪等待
 - 可通过 `STARTUP_DELAY_SEC` 为板端显示链增加启动延时；可通过 `WAIT_FOR_SERIAL_SEC` 为桥接链增加串口等待，避免设备尚未就绪时启动失败
 - 当前脚本布局把“板端实时画面观察”和“桥接到下位机”拆成两组入口，便于分开排障
+- 路径迁移期间可通过 `REMOTE_SRC_DIR` 和 `REMOTE_SCRIPT_DIR` 覆盖远端源码目录和脚本目录；默认仍保持 `/home/sunrise/rm_ws/src` 与 `/home/sunrise/rm_ws/src/scripts`
 
 示例：
 
@@ -48,7 +49,7 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 
 ### 阅读建议
 
-- 如果你先看到了本目录，建议回头配合 `dev-branch/README.md` 一起看
+- 如果你先看到了本目录，建议回头配合 `ros2_ws/README.md` 一起看
 - 若你在看桥接链，请同时参考 `rm_gimbal_bridge/README.md`
 - 若你在看板端三节点显示链，请同时参考 `hik_camera/README.md` 和 `rm_armor_detection/README.md`
 
@@ -75,6 +76,7 @@ The `scripts` directory stores deployment and integration helper scripts for the
 - `rm-autoaim.service` is now intended for runtime-only autostart, while `rm-bridge.service` handles the separate bridge bring-up flow
 - use `STARTUP_DELAY_SEC` for the board-side display chain and `WAIT_FOR_SERIAL_SEC` for the bridge chain when devices may appear late at boot
 - the current script layout intentionally separates board-side visual inspection from lower-level bridge integration for easier debugging
+- during migration, `REMOTE_SRC_DIR` and `REMOTE_SCRIPT_DIR` can override the remote source and script directories; defaults stay compatible with `/home/sunrise/rm_ws/src` and `/home/sunrise/rm_ws/src/scripts`
 
 Example:
 
@@ -97,6 +99,6 @@ ros2 run rm_armor_detection rm_armor_detection_visualizer
 
 ### Reading Guidance
 
-- if you started from this directory, read `dev-branch/README.md` alongside it
+- if you started from this directory, read `ros2_ws/README.md` alongside it
 - for the bridge path, pair this with `rm_gimbal_bridge/README.md`
 - for the board-side three-node display path, pair this with `hik_camera/README.md` and `rm_armor_detection/README.md`

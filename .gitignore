@@ -5,6 +5,9 @@ _git_migration_backup/
 !_git_migration_backup/
 _git_migration_backup/*
 !_git_migration_backup/README.md
+archive/historical_code/_git_migration_backup/*
+!archive/historical_code/_git_migration_backup/README.md
+*.git.BAK-*/
 *.tar.gz
 
 # =========================
@@ -15,7 +18,7 @@ _git_migration_backup/*
 # =========================
 # Build artifacts (STM32)
 # =========================
-Gimbal control/build/
+firmware/stm32_gimbal_control/build/
 *.o
 *.d
 *.elf
@@ -28,6 +31,9 @@ Gimbal control/build/
 dev-branch/build/
 dev-branch/install/
 dev-branch/log/
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
 
 # =========================
 # Nested build

@@ -1,44 +1,30 @@
-# Architecture And Migration Notes
+# Architecture
 
-## 1. Naming Direction
+Updated: 2026-04-11
 
-Preferred product naming:
-
-- product name: `TianAim`
-- future tool/module prefix: `tianaim_*`
-
-This update does not rename active runtime packages. It prepares the repository so a future staged rename is possible without losing current operability.
-
-## 2. Current Architecture
-
-### Upper-Level Runtime
+## Active Layout
 
 ```text
-dev-branch/
-├── hik_camera
-├── rm_armor_detection
-├── rm_gimbal_bridge
-├── rm_interfaces
-├── rm_utils
-└── scripts
+ros2_ws/                         # 上位机: ROS2 / TROS / RDK-X5
+firmware/stm32_gimbal_control/   # 下位机: STM32 gimbal firmware
+datasets/                        # dataset structure and manifests
+models/                          # model metadata and exports
+tools/                           # capture, labeling, training, evaluation helpers
+scripts/                         # top-level wrapper commands
 ```
 
-### Lower-Level Runtime
+Historical/reference areas:
 
 ```text
-Gimbal control/
-├── Src
-├── Inc
-├── Chassis
-├── IMU
-├── algorithm
-├── USB_DEVICE
-├── Drivers
-├── Middlewares
-└── Makefile
+archive/
+└── historical_code/
+    ├── dev-branch/
+    ├── tianboard_s/
+    ├── _git_migration_backup/
+    └── stm32_gimbal_control.git.BAK-20260319/
 ```
 
-### Runtime Data Flow
+## Runtime Chain
 
 ```text
 hik_camera
@@ -46,113 +32,68 @@ hik_camera
   -> rm_armor_detection
   -> /dnn_node_sample
   -> rm_gimbal_bridge
-  -> UART or USB CDC validation path
+  -> UART
   -> vision_input
   -> target_state
   -> gimbal_task
 ```
 
-## 3. Target Product Structure
+UART remains the stable communication path. USB CDC is kept for migration validation.
 
-Recommended target layout:
-
-```text
-/
-├── README.md
-├── AGENTS.md
-├── docs/
-├── firmware/
-│   └── stm32_gimbal_control/
-├── ros2_ws/
-│   └── src/
-├── datasets/
-├── models/
-├── tools/
-├── scripts/
-└── archive/
-```
-
-## 4. Why The Source Trees Were Not Moved Yet
-
-`dev-branch/` was not physically moved because:
-
-- existing deployment scripts still assume `dev-branch/`
-- current `colcon` and remote bring-up flow already work there
-
-`Gimbal control/` was not physically moved because:
-
-- its Makefile and related local workflows already reference the current path
-- directory rename risk is high for local IDE metadata and external references
-
-This means the current migration approach is:
-
-- add transition anchors first
-- update docs and top-level entry scripts
-- move real code later in reviewable steps
-
-## 5. Controller Evolution Plan
-
-Mainline recommendation:
-
-1. keep current `P/PI`-compatible control path as the validated mainline
-2. add prediction stabilization before introducing more aggressive control changes
-3. treat `Kalman`, `alpha-beta`, and `LQR` as experiment lines until hardware-validated
-
-Code entry points:
-
-- current control application: `Gimbal control/Src/gimbal_task.c`
-- current tuning macros: `Gimbal control/Src/gimbal_task.h`
-- current target ingest: `Gimbal control/Src/target_state.c`
-
-Implementation principle:
-
-- expose explicit controller extension points
-- do not rewrite the working control loop without hardware verification
-
-## 6. Dataset Workflow Design
-
-Recommended dataset lifecycle:
+## Upper-Level Runtime
 
 ```text
-camera capture
-  -> datasets/raw/session_x
-  -> session manifest
-  -> labeling export
-  -> datasets/labeled/
-  -> datasets/splits/
-  -> training config / model artifact
-  -> evaluation report
+ros2_ws/src/hik_camera/
+ros2_ws/src/rm_armor_detection/
+ros2_ws/src/rm_gimbal_bridge/
+ros2_ws/src/rm_interfaces/
+ros2_ws/src/rm_utils/
+ros2_ws/scripts/
 ```
 
-Suggested image naming:
+Primary bridge source:
+
+- `ros2_ws/src/rm_gimbal_bridge/src/serial_bridge_node.cpp`
+
+## Lower-Level Firmware
 
 ```text
-<session_id>_<camera_id>_<timestamp_ns>_<frame_index>.jpg
+firmware/stm32_gimbal_control/
+├── Src/
+├── Inc/
+├── Chassis/
+├── IMU/
+├── algorithm/
+├── USB_DEVICE/
+├── Drivers/
+├── Middlewares/
+└── Makefile
 ```
 
-Suggested session manifest fields:
+Primary control sources:
 
-- `session_id`
-- `project`
-- `camera.vendor`
-- `camera.model`
-- `capture_mode`
-- `image_format`
-- `environment`
-- `operator`
-- `labels_expected`
-- `frames[]`
+- `firmware/stm32_gimbal_control/Src/vision_input.c`
+- `firmware/stm32_gimbal_control/Src/target_state.c`
+- `firmware/stm32_gimbal_control/Src/gimbal_task.c`
 
-## 7. Archive Strategy
+## Data And Model Workflow
 
-Recommended archive scope:
+```text
+datasets/raw/
+datasets/labeled/
+datasets/splits/
+datasets/manifests/
+models/
+tools/capture/
+tools/labeling/
+tools/training/
+tools/evaluation/
+```
 
-- `tianboard_s/`
-- `dev-branch/armor_detector/`
-- `dev-branch/rm_camera_driver/`
-- `dev-branch/rm_camera_driver_nv12/`
-- `dev-branch/work_handover/`
-- `dev-branch/ultralytics-8.2.103/`
-- `_git_migration_backup/`
+Keep small metadata, configs, and reports in Git. Do not commit large raw datasets or model weights without explicit approval.
 
-These should be documented as references first, then physically moved only when all references are updated.
+## Migration Rule
+
+Do not use `archive/historical_code/` for new runtime work. Keep upper-level changes in `ros2_ws/`, firmware changes in `firmware/stm32_gimbal_control/`, and tooling/model workflow changes under `tools/`, `datasets/`, or `models/`.
+
+The staged migration details are in `docs/migration_plan.md`.

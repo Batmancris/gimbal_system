@@ -62,7 +62,7 @@ tune err=(ex,ey) add=(yaw,pitch)mrad pitch_set=... current=(...) seq=...
 ### 当前入口关系
 
 - 上游检测主线：`rm_armor_detection`
-- 下游通信默认主链：`UART -> Gimbal control`
+- 下游通信默认主链：`UART -> STM32 gimbal control`
 - 脚本入口：`scripts/start_rm_bridge_tmux.sh`
 
 ### 运行
@@ -170,5 +170,5 @@ ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py serial_port:=/dev/ttyS1
 ### Current Entry Relationships
 
 - upstream detector mainline: `rm_armor_detection`
-- downstream default communication path: `UART -> Gimbal control`
+- downstream default communication path: `UART -> STM32 gimbal control`
 - script entry: `scripts/start_rm_bridge_tmux.sh`
