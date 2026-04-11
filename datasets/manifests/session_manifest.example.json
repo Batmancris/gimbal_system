@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "project": "TianAim",
+  "session_id": "20260327_demo_capture",
+  "camera": {
+    "vendor": "Hikvision",
+    "model": "TODO",
+    "serial_number": "TODO"
+  },
+  "capture_mode": "manual_or_triggered",
+  "image_format": "jpg",
+  "labels_expected": [
+    "vehicle",
+    "armor"
+  ],
+  "environment": {
+    "site": "TODO",
+    "lighting": "TODO"
+  },
+  "frames": [
+    {
+      "file_name": "20260327_demo_capture_cam0_1711520000000000000_000001.jpg",
+      "frame_index": 1,
+      "timestamp_ns": 1711520000000000000,
+      "annotations": []
+    }
+  ]
+}

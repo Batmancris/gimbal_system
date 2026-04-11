@@ -1,281 +1,378 @@
-# gimbal_system
+# TianAim / gimbal_system
 
 [中文](#中文) | [English](#english)
 
 ## 中文
 
-### 仓库定位
+### 产品定位
 
-这是当前云台系统的总仓库入口，用于统一管理：
+当前仓库仍沿用历史仓库名 `gimbal_system`，但主线产品化方向已经明确收敛为 `TianAim`。
 
-- 上位机 ROS2 / TROS / RDK-X5 主线
-- 下位机 STM32 云台控制主线
-- 参考板级工程
-- 部署、联调与迁移辅助文档
+本仓库用于承载 Tianbot 云台视觉控制系统的完整产品主线，包括：
 
-自 2026-03-19 仓库归并后，这里就是默认总入口。若历史分仓文档与当前代码状态冲突，以本仓库内主线代码和主线 README 为准。
+- 上位机 ROS2 / TROS / RDK-X5 感知与桥接链路
+- 下位机 STM32 云台控制固件
+- UART 主通信链路与 USB CDC 迁移验证链路
+- 后续车辆图像数据采集、标注、训练与评估资产
+- 面向人类开发者与 AI agent 的统一文档入口
 
-### 当前推荐主线
+当前策略不是一次性大搬家，而是先把仓库升级为“可维护的产品仓”，在不破坏现有运行链的前提下补齐产品化目录、命名规则和迁移说明。
 
-当前建议维护、联调和继续演进的正式路径是：
+### 当前稳定主链
+
+当前推荐维护和联调的整机主链为：
 
 ```text
-hik_camera
+Hik camera
   -> rm_armor_detection
   -> rm_gimbal_bridge
   -> UART
   -> Gimbal control
 ```
 
-当前结论：
+通信结论：
 
-- 上位机正式主线在 `dev-branch/`
-- 下位机正式主线在 `Gimbal control/`
-- 当前整机默认稳定通信主链仍然是 `UART`
-- `USB CDC` 已完成基础双向通信、最小 pitch 验证和一次目标跟踪联调，但还未完全替代 UART
-- `tianboard_s/` 仅作参考，不应继续承担主线开发
+- `UART` 仍是当前默认稳定链路
+- `USB CDC` 已经打通基础双向通信和最小控制验证，但仍属于迁移验证链
+- 下位机视觉控制当前以 `P/PI 兼容框架` 为主线，后续再扩展预测与更复杂控制算法
 
-### 仓库结构
+### 当前仓库现状与过渡结构
+
+当前真实主线代码仍位于：
+
+- ROS2 上位机主线：`dev-branch/`
+- STM32 固件主线：`Gimbal control/`
+
+本次已经新增一层更产品化的过渡结构，用于统一导航和后续迁移：
 
 ```text
-gimbal_system/
-├── README.md                 # 本文件，总仓库入口
-├── Gimbal control/           # STM32 下位机主线工程
-├── dev-branch/               # ROS2 / TROS / RDK-X5 上位机主线工作区
-├── tianboard_s/              # 参考 / 备用板级工程
-├── tools/                    # 辅助工具与诊断脚本
-└── _git_migration_backup/    # 仓库整理时保留的迁移备份
+.
+├── README.md
+├── AGENTS.md
+├── docs/                  # 架构、审计、分类、backlog
+├── firmware/              # 固件主线迁移说明与未来命名锚点
+├── ros2_ws/               # ROS2 工作区迁移说明与未来 src 锚点
+├── datasets/              # 数据采集/标注/切分骨架
+├── models/                # 模型与导出物约定
+├── tools/                 # 采集/标注/训练/评估/诊断工具
+├── scripts/               # 顶层统一入口脚本
+├── archive/               # 历史目录归档说明
+├── dev-branch/            # 当前 ROS2 主线物理位置
+├── Gimbal control/        # 当前固件主线物理位置
+├── tianboard_s/           # 参考板级工程
+└── _git_migration_backup/ # 迁移备份
 ```
 
-### 目录导航
+这里的关键点是：
 
-#### `dev-branch/`
+- 已把 `ros2_ws/`、`firmware/`、`archive/`、`datasets/`、`models/`、顶层 `scripts/` 补成正式入口
+- 暂未粗暴移动 `dev-branch/` 与 `Gimbal control/`，避免破坏现有脚本、Makefile、launch、远端部署路径
+- 未来建议逐步把 `dev-branch/` 收敛到 `ros2_ws/src/`，把 `Gimbal control/` 收敛到 `firmware/stm32_gimbal_control/`
 
-当前唯一可信的上位机主线工作区。
+### 主链路说明
 
-负责内容：
+系统主链路建议按下面理解：
 
-- 海康工业相机接入
-- YOLOv8 / BPU 装甲板检测
-- 检测结果桥接到下位机串口协议
-- RDK-X5 板端实时可视化
-- tmux / service / 部署脚本
+```text
+Hik camera
+  -> image_raw / hbmem_img
+  -> rm_armor_detection
+  -> /dnn_node_sample
+  -> rm_gimbal_bridge
+  -> UART serial frame
+  -> vision_input.c
+  -> target_state.c
+  -> gimbal_task.c
+  -> yaw / pitch control
+```
 
-入口：[`dev-branch/README.md`](./dev-branch/README.md)
+当前关键节点位置：
 
-#### `Gimbal control/`
+- 相机驱动：`dev-branch/hik_camera`
+- 检测节点：`dev-branch/rm_armor_detection`
+- 检测可视化：`dev-branch/rm_armor_detection/src/visualizer.cpp`
+- 串口桥接：`dev-branch/rm_gimbal_bridge/src/serial_bridge_node.cpp`
+- 下位机视觉输入：`Gimbal control/Src/vision_input.c`
+- 下位机目标状态：`Gimbal control/Src/target_state.c`
+- 下位机控制主逻辑：`Gimbal control/Src/gimbal_task.c`
 
-当前唯一可信的下位机主线工程。
+### 快速开始
 
-负责内容：
+#### 1. 阅读顺序
 
-- 云台与电机控制
-- IMU 与姿态解算
-- CAN / DBUS / 视觉输入
-- FreeRTOS 任务组织
-- UART 主链与 USB CDC 迁移验证
+1. `README.md`
+2. `docs/repo_audit.md`
+3. `dev-branch/README.md`
+4. `Gimbal control/README.md`
+5. 包级 README 或工具 README
 
-入口：[`Gimbal control/README.md`](./Gimbal%20control/README.md)
+#### 2. ROS2 主线构建
 
-#### `tianboard_s/`
+```bash
+bash scripts/build_ros2_mainline.sh
+```
 
-参考 / 备用板级工程，不是当前整机联调主线。
+等价于：
 
-更适合用于：
+```bash
+cd dev-branch
+source /opt/tros/humble/setup.bash
+colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
+```
 
-- 查阅历史板级实现
-- 对照 USB Device 组织方式
-- 迁移时复用局部底层实现
+#### 3. 固件主线构建
 
-入口：[`tianboard_s/README.md`](./tianboard_s/README.md)
+```bash
+bash scripts/build_firmware_mainline.sh
+```
 
-#### `tools/`
+等价于：
 
-保存一些与主线运行分离的辅助诊断工具。
+```bash
+make -C "Gimbal control"
+```
 
-入口：[`tools/README.md`](./tools/README.md)
+#### 4. 桥接节点运行
 
-#### `_git_migration_backup/`
+```bash
+bash scripts/run_ros2_bridge.sh
+```
 
-保存仓库归并时的备份产物，不参与当前主线开发。
+### 环境依赖
 
-入口：[`_git_migration_backup/README.md`](./_git_migration_backup/README.md)
+ROS2 / 上位机：
 
-### 推荐阅读顺序
+- ROS2 Humble / TROS
+- RDK-X5 运行环境
+- Hikrobot / Hikvision 相机 SDK
+- `colcon`, `ament_cmake`
 
-如果你是第一次进入这个总仓库，建议按下面顺序看：
+固件 / 下位机：
 
-1. 本 README：确认当前真实主线和仓库边界
-2. [`dev-branch/README.md`](./dev-branch/README.md)：确认上位机运行链、主线包和历史目录定位
-3. [`dev-branch/scripts/README.md`](./dev-branch/scripts/README.md)：确认 tmux / service / 部署脚本
-4. [`Gimbal control/README.md`](./Gimbal%20control/README.md)：确认下位机通信主链和 USB CDC 迁移状态
-5. [`tianboard_s/README.md`](./tianboard_s/README.md)：必要时查阅板级参考实现
+- `arm-none-eabi-gcc`
+- STM32F407 对应 HAL / CMSIS 依赖
+- GNU Make
 
-### 文档整理原则
+数据采集与训练工具：
 
-当前仓库的 README 已按“主入口 + 子目录入口 + 包级入口”整理。使用时建议遵循：
+- Python 3.10+
+- 建议使用 `venv`
+- 真实海康采集接入时，需要对应 Python SDK 或 C API 封装
 
-1. 先看当前目录下的 `README.md`
-2. 如遇旧版 `Readme.md`、`README_cn.md` 一类历史文档，优先以新的双语 `README.md` 为准
-3. 如文档和代码状态不一致，以当前源码入口、launch、脚本和 service 文件为准
+### 构建与运行入口
 
-### 当前可继续精简的结构
+当前可确认的主线入口如下：
 
-以下内容目前保留，但不属于应继续扩展的主线目录：
+- ROS2 构建：`dev-branch/` 下 `colcon build`
+- ROS2 运行：`dev-branch/scripts/start_autoaim_tmux.sh`
+- 桥接运行：`dev-branch/scripts/start_rm_bridge_tmux.sh`
+- 固件构建：`Gimbal control/Makefile`
+- USB CDC 最小测试：`dev-branch/scripts/usb_cdc_pitch_control_test.py`
 
-- `dev-branch/build/`
-- `dev-branch/install/`
-- `dev-branch/log/`
-- `dev-branch/scripts/__pycache__/`
-- 各目录下保留的 `.git.BAK-*`
+本次新增的统一入口：
 
-文档层面的建议是：
+- `scripts/build_ros2_mainline.sh`
+- `scripts/build_firmware_mainline.sh`
+- `scripts/run_ros2_bridge.sh`
 
-- 继续把过时 README 收敛为跳转页或历史页
-- 将构建产物和缓存目录视作可清理对象
-- 将迁移备份统一集中在 `_git_migration_backup/`
+### 目录说明
 
-### 当前已知边界
+- `dev-branch/`
+  当前真实 ROS2 主线工作区，后续建议迁移到 `ros2_ws/src/`
+- `Gimbal control/`
+  当前真实 STM32 固件主线，后续建议迁移到 `firmware/stm32_gimbal_control/`
+- `docs/`
+  审计、架构、分类、迁移和 backlog 文档
+- `datasets/`
+  采集、标注、切分与 manifest 骨架
+- `models/`
+  模型权重、导出模型与实验记录约定
+- `tools/`
+  数据采集、标注、训练、评估与诊断工具
+- `scripts/`
+  顶层统一命令入口
+- `archive/`
+  历史和参考目录的归档说明，不直接替代真实目录
 
-- 当前总仓库结构已经稳定，但历史目录和迁移痕迹仍然保留
-- USB CDC 目前属于迁移验证路径，不是默认整机运行路径
-- 一些目录保留是为了参考、对照和回溯，不代表当前应从这些目录继续开发
+### 当前稳定链路与实验链路
+
+稳定主线：
+
+- `hik_camera -> rm_armor_detection -> rm_gimbal_bridge -> UART -> Gimbal control`
+
+迁移中链路：
+
+- `rm_gimbal_bridge -> USB CDC -> Gimbal control`
+
+实验扩展方向：
+
+- 控制算法预测稳定化
+- `Kalman + PI` 实验控制器
+- `LQR` 实验控制器
+- 数据采集、训练和模型迭代闭环
+
+### 数据采集链路
+
+本次已经新增最小数据链路骨架：
+
+```text
+datasets/
+├── raw/
+├── labeled/
+├── splits/
+└── manifests/
+
+tools/
+├── capture/
+├── labeling/
+├── training/
+└── evaluation/
+```
+
+当前最小可执行采集脚本：
+
+```bash
+python3 tools/capture/capture_session.py --config tools/capture/config.yaml
+```
+
+该脚本当前支持：
+
+- 创建采集 session 目录
+- 输出 session manifest
+- 可选把已有图片导入为一组原始采集数据
+- 预留真实海康 SDK 适配层接口
+
+### 命名与迁移原则
+
+本仓库未来优先采用 `TianAim` 产品名，但本次只做“命名就绪”和“小范围统一”，不做大规模破坏性 rename。
+
+建议逐步迁移目标：
+
+- 仓库产品名：`TianAim`
+- 顶层工作区：`ros2_ws/`
+- 固件目录：`firmware/stm32_gimbal_control/`
+- 新增工具/脚本/数据目录使用无空格、全小写、下划线风格
+- 新增 Python 工具与文档优先采用 `tianaim_*` 语义
+
+### Roadmap
+
+- P0：完成仓库产品化入口、数据采集骨架、AI-agent 导航文档
+- P1：把 `dev-branch/` 迁移到 `ros2_ws/src/` 的可审查方案落地
+- P1：把 `Gimbal control/` 迁移到 `firmware/stm32_gimbal_control/` 的兼容方案落地
+- P1：接入真实海康采集适配器，输出规范化 manifest
+- P2：建立标注、训练、评估闭环
+- P2：引入 `P/PI + prediction` 控制主线增强
+- P3：评估 `Kalman`、`alpha-beta`、`LQR` 实验控制线
 
 ## English
 
-### Repository Role
+### Product Position
 
-This repository is the current top-level entry for the gimbal system. It keeps together:
+The repository still keeps the historical name `gimbal_system`, but the product-facing direction is now converging on `TianAim`.
 
-- the active ROS2 / TROS / RDK-X5 upper-level workspace
-- the active STM32 lower-level firmware mainline
-- reference board-level projects
-- deployment, integration, and migration helper documentation
+This repository is the integrated product workspace for the Tianbot gimbal vision-control stack, including:
 
-Since the repository consolidation on 2026-03-19, this workspace should be treated as the default project entry. If older split-repository documents conflict with the current codebase, trust the in-repo mainline code and the current README files.
+- the ROS2 / TROS / RDK-X5 upper-level pipeline
+- the STM32 lower-level firmware
+- UART mainline communication and USB CDC migration work
+- future dataset capture, labeling, training, and evaluation assets
+- unified developer and AI-agent navigation
 
-### Recommended Mainline
+The current strategy is not a big-bang move. Instead, we keep the verified runtime chain intact while adding product-ready structure, naming guidance, and transition entry points.
 
-The recommended maintenance and integration path is:
+### Current Verified Pipeline
 
 ```text
-hik_camera
+Hik camera
   -> rm_armor_detection
   -> rm_gimbal_bridge
   -> UART
   -> Gimbal control
 ```
 
-Current conclusions:
+### Transition Layout
 
-- the formal upper-level mainline is `dev-branch/`
-- the formal lower-level mainline is `Gimbal control/`
-- `UART` remains the default stable whole-system communication path
-- `USB CDC` has passed transport validation, minimal pitch validation, and one end-to-end tracking test, but it has not fully replaced UART
-- `tianboard_s/` is reference-only and should not carry mainline feature work
+The physical source-of-truth paths are still:
 
-### Repository Layout
+- ROS2 mainline: `dev-branch/`
+- firmware mainline: `Gimbal control/`
+
+This update adds a product-oriented transition layer:
+
+- `docs/`
+- `firmware/`
+- `ros2_ws/`
+- `datasets/`
+- `models/`
+- top-level `scripts/`
+- `archive/`
+
+These are navigation and migration anchors. They do not yet replace the active runtime paths.
+
+### Main Runtime Chain
 
 ```text
-gimbal_system/
-├── README.md                 # this file, top-level entry
-├── Gimbal control/           # STM32 lower-level firmware mainline
-├── dev-branch/               # ROS2 / TROS / RDK-X5 upper-level workspace
-├── tianboard_s/              # reference / backup board-level project
-├── tools/                    # helper tools and diagnostics
-└── _git_migration_backup/    # migration backups kept from repository consolidation
+Hik camera
+  -> image_raw / hbmem_img
+  -> rm_armor_detection
+  -> /dnn_node_sample
+  -> rm_gimbal_bridge
+  -> UART serial frame
+  -> vision_input.c
+  -> target_state.c
+  -> gimbal_task.c
+  -> yaw / pitch control
 ```
 
-### Directory Guide
+### Quick Start
 
-#### `dev-branch/`
+Build the ROS2 mainline:
 
-The only trusted upper-level workspace mainline.
+```bash
+bash scripts/build_ros2_mainline.sh
+```
 
-Owns:
+Build the firmware mainline:
 
-- Hikrobot industrial camera integration
-- YOLOv8 / BPU armor detection
-- bridge logic from detector output to lower-level protocol
-- live on-device visualization on the RDK-X5
-- tmux / service / deployment scripts
+```bash
+bash scripts/build_firmware_mainline.sh
+```
 
-Entry: [`dev-branch/README.md`](./dev-branch/README.md)
+Run the bridge node:
 
-#### `Gimbal control/`
+```bash
+bash scripts/run_ros2_bridge.sh
+```
 
-The only trusted lower-level firmware mainline.
+### Data Capture Skeleton
 
-Owns:
+This repository now includes:
 
-- gimbal and motor control
-- IMU and attitude estimation
-- CAN / DBUS / vision input
-- FreeRTOS task organization
-- UART mainline and USB CDC migration validation
+- `datasets/raw`
+- `datasets/labeled`
+- `datasets/splits`
+- `datasets/manifests`
+- `tools/capture`
+- `tools/labeling`
+- `tools/training`
+- `tools/evaluation`
 
-Entry: [`Gimbal control/README.md`](./Gimbal%20control/README.md)
+The minimal capture entry is:
 
-#### `tianboard_s/`
+```bash
+python3 tools/capture/capture_session.py --config tools/capture/config.yaml
+```
 
-A reference / backup board-level project, not the active full-system mainline.
+### Naming Direction
 
-Best used for:
+The preferred future product name is `TianAim`, but this update intentionally avoids a risky full rename. New top-level additions use stable, lowercase, no-space naming and prepare the path toward:
 
-- reviewing historical board-level implementations
-- comparing USB Device organization
-- selectively reusing low-level implementation details during migration
+- `ros2_ws/`
+- `firmware/stm32_gimbal_control/`
+- `tianaim_*` for new tools and integrations
 
-Entry: [`tianboard_s/README.md`](./tianboard_s/README.md)
+### More Detail
 
-#### `tools/`
-
-Stores helper scripts that support debugging and integration but are not the main runtime path.
-
-Entry: [`tools/README.md`](./tools/README.md)
-
-#### `_git_migration_backup/`
-
-Stores repository-consolidation backups and migration artifacts. It is not part of the current development path.
-
-Entry: [`_git_migration_backup/README.md`](./_git_migration_backup/README.md)
-
-### Recommended Reading Order
-
-If you are entering this repository for the first time, read in this order:
-
-1. this README for current repository boundaries
-2. [`dev-branch/README.md`](./dev-branch/README.md) for the upper-level mainline packages and retained legacy paths
-3. [`dev-branch/scripts/README.md`](./dev-branch/scripts/README.md) for tmux / service / deployment entry points
-4. [`Gimbal control/README.md`](./Gimbal%20control/README.md) for lower-level communication status and USB CDC migration notes
-5. [`tianboard_s/README.md`](./tianboard_s/README.md) when reference board-level code is needed
-
-### Documentation Policy
-
-The repository now follows a layered README structure: root entry, directory entry, and package entry. Use this order:
-
-1. read the `README.md` in the current directory first
-2. if you encounter older `Readme.md` or `README_cn.md` files, prefer the new bilingual `README.md`
-3. if documentation and code disagree, trust current source entry points, launch files, scripts, and service files
-
-### Remaining Structure Cleanup Candidates
-
-The following items are intentionally retained for now, but they are not active development targets:
-
-- `dev-branch/build/`
-- `dev-branch/install/`
-- `dev-branch/log/`
-- `dev-branch/scripts/__pycache__/`
-- `.git.BAK-*` directories kept under historical subprojects
-
-Documentation-side guidance:
-
-- keep consolidating outdated READMEs into redirect or history pages
-- treat build outputs and cache directories as cleanup candidates
-- keep migration backups centralized under `_git_migration_backup/`
-
-### Known Boundaries
-
-- the top-level repository structure is already settled, but historical directories and migration traces are intentionally retained
-- USB CDC is still a migration-validation path rather than the default whole-system runtime path
-- some directories are kept for reference, comparison, or rollback context and are not the places to continue current mainline development
+- audit: `docs/repo_audit.md`
+- structure and migration notes: `docs/architecture.md`
+- backlog: `docs/backlog.md`
