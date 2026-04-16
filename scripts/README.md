@@ -1,19 +1,17 @@
 # scripts
 
-Top-level convenience entry points for the current repository.
+Top-level convenience wrappers for the current repository.
 
-These wrappers intentionally preserve the current physical source tree while giving contributors a cleaner product-facing entry.
+## Path resolution
 
-Path compatibility:
+- `TIANAIM_ROS_WS` overrides the ROS2 workspace path
+- `TIANAIM_FIRMWARE_DIR` overrides the firmware path
+- default ROS2 workspace: `ros2_ws/`
+- default firmware path: `firmware/stm32_gimbal_control/`
 
-- `TIANAIM_ROS_WS` can override the ROS2 workspace path.
-- `TIANAIM_FIRMWARE_DIR` can override the firmware project path.
-- By default, ROS2 resolves to `ros2_ws/`.
-- By default, firmware resolves to `firmware/stm32_gimbal_control/`.
+## Current scripts
 
-Current scripts:
-
-- `build_ros2_mainline.sh`
-- `build_firmware_mainline.sh`
-- `run_ros2_bridge.sh`
-- `tianaim_paths.sh`
+- `build_ros2_mainline.sh`: builds `hik_camera rm_armor_detection rm_vehicle_detection rm_gimbal_bridge`
+- `build_firmware_mainline.sh`: builds the STM32 firmware mainline
+- `run_ros2_bridge.sh`: launches `rm_gimbal_bridge.launch.py`
+- `tianaim_paths.sh`: shared path resolver used by the wrappers

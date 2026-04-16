@@ -26,6 +26,7 @@ source /opt/tros/humble/setup.bash
 source install/setup.bash || true
 
 pkill -f "rm_armor_detection rm_armor_detection" 2>/dev/null || true
+pkill -f "rm_vehicle_detection rm_vehicle_detection_node" 2>/dev/null || true
 pkill -f hik_camera_node 2>/dev/null || true
 
 tmux_cmd kill-session -t rm_det 2>/dev/null || true

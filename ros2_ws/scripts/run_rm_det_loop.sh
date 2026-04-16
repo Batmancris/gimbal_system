@@ -11,9 +11,14 @@ while true; do
   printf '[%s] starting rm_det
 ' "$(date +%F_%T)"
   if [ "${DETECTOR_TYPE}" = "vehicle" ]; then
-    ros2 run rm_vehicle_detection rm_vehicle_detection_node --ros-args \
-      -p output_topic:="${DETECTOR_TOPIC}" \
-      -p model_path:="${VEHICLE_MODEL_PATH}"
+    if [ -n "${VEHICLE_MODEL_PATH}" ]; then
+      ros2 run rm_vehicle_detection rm_vehicle_detection_node --ros-args \
+        -p output_topic:="${DETECTOR_TOPIC}" \
+        -p model_path:="${VEHICLE_MODEL_PATH}"
+    else
+      ros2 run rm_vehicle_detection rm_vehicle_detection_node --ros-args \
+        -p output_topic:="${DETECTOR_TOPIC}"
+    fi
   else
     ros2 run rm_armor_detection rm_armor_detection
   fi

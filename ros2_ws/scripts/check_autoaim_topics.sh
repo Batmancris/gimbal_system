@@ -2,6 +2,7 @@
 set -eo pipefail
 
 REMOTE_WS="${REMOTE_WS:-/home/sunrise/rm_ws}"
+DETECTOR_TOPIC="${DETECTOR_TOPIC:-/dnn_node_sample}"
 
 cd "${REMOTE_WS}"
 source /opt/tros/humble/setup.bash
@@ -15,8 +16,8 @@ echo "[/hbmem_img]"
 ros2 topic info /hbmem_img -v
 
 echo
-echo "[/dnn_node_sample]"
-ros2 topic info /dnn_node_sample -v
+echo "[${DETECTOR_TOPIC}]"
+ros2 topic info "${DETECTOR_TOPIC}" -v
 
 echo
 echo "[tmux rm_det]"
