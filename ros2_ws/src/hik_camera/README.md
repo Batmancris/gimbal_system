@@ -33,13 +33,14 @@
 - `frame_id`
 - `exposure_time`
 - `gain`
+- `gamma_enable`
+- `gamma`
 - `camera_info_url`
 - `use_sensor_data_qos`
 
 ### 当前联调说明
 
-- 当前 RM 装甲板主线更偏向较暗、高对比度画面，以突出灯条
-- 目前项目内联调使用的曝光参数比默认更高，用于在现有环境下稳定看到目标灯条
+- 当前车辆检测联调使用短曝光加适度增益，并开启 Gamma 提亮暗部，避免高亮区域过早过曝
 - 某些海康相机型号或 SDK 组合下，`gain` 可能不会按配置成功写入，需要以实际启动日志为准
 - `image_raw` 会被桌面可视化节点直接订阅，用于叠加检测框显示
 
@@ -89,13 +90,14 @@ It is responsible for:
 - `frame_id`
 - `exposure_time`
 - `gain`
+- `gamma_enable`
+- `gamma`
 - `camera_info_url`
 - `use_sensor_data_qos`
 
 ### Current Integration Notes
 
-- The current RM armor-detection workflow intentionally favors darker, higher-contrast images so the light bars stand out more clearly
-- The present validation setup uses a higher exposure than the earlier default to make the target lighting easier to inspect in the current environment
+- The current vehicle-detection setup uses shorter exposure, moderate gain, and Gamma to lift shadows while limiting highlight clipping
 - On some Hikrobot camera and SDK combinations, the configured `gain` may not be accepted at runtime, so the startup log is the source of truth
 - `image_raw` is also consumed by the desktop visualizer for live overlay rendering
 

@@ -3,14 +3,15 @@
 #include "dnn_node/dnn_node.h"
 #include "dnn_node/util/image_proc.h"
 #include "hbm_img_msgs/msg/hbm_msg1080_p.hpp"
-#include "hobot_cv/hobotcv_imgproc.h"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/header.hpp"
 
 #include "parser.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,46 +21,6 @@ namespace {
 std::string GetDefaultModelPath() {
   const auto package_prefix = ament_index_cpp::get_package_prefix("rm_vehicle_detection");
   return package_prefix + "/lib/rm_vehicle_detection/config/quant.bin";
-}
-
-int ResizeNV12Img(const char *in_img_data,
-                  const int &in_img_height,
-                  const int &in_img_width,
-                  const int &scaled_img_height,
-                  const int &scaled_img_width,
-                  cv::Mat &out_img,
-                  float &x_ratio,
-                  float &y_ratio) {
-  cv::Mat src(
-    in_img_height * 3 / 2, in_img_width, CV_8UC1, const_cast<char *>(in_img_data));
-
-  float ratio_w =
-    static_cast<float>(in_img_width) / static_cast<float>(scaled_img_width);
-  float ratio_h =
-    static_cast<float>(in_img_height) / static_cast<float>(scaled_img_height);
-  float dst_ratio = std::max(ratio_w, ratio_h);
-
-  int resized_width = scaled_img_width;
-  int resized_height = scaled_img_height;
-  if (dst_ratio == ratio_w) {
-    resized_height = static_cast<int>(static_cast<float>(in_img_height) / dst_ratio);
-  } else {
-    resized_width = static_cast<int>(static_cast<float>(in_img_width) / dst_ratio);
-  }
-
-  const int remain = resized_width % 16;
-  if (remain != 0) {
-    resized_width -= remain;
-    dst_ratio = static_cast<float>(in_img_width) / static_cast<float>(resized_width);
-    resized_height = static_cast<int>(static_cast<float>(in_img_height) / dst_ratio);
-  }
-  resized_height = resized_height % 2 == 0 ? resized_height : resized_height - 1;
-
-  x_ratio = dst_ratio;
-  y_ratio = dst_ratio;
-
-  return hobot_cv::hobotcv_resize(
-    src, in_img_height, in_img_width, out_img, resized_height, resized_width);
 }
 
 struct VehicleNodeOutput : public hobot::dnn_node::DnnNodeOutput {
@@ -84,7 +45,12 @@ class VehicleDetectionNode : public hobot::dnn_node::DnnNode {
     nms_threshold_ = this->declare_parameter<double>("nms_threshold", 0.5);
     nms_top_k_ = this->declare_parameter<int>("nms_top_k", 300);
     task_num_ = this->declare_parameter<int>("task_num", 4);
+    max_inflight_ = this->declare_parameter<int>("max_inflight", 1);
     log_fps_ = this->declare_parameter<bool>("log_fps", false);
+    if (max_inflight_ < 1) {
+      RCLCPP_WARN(this->get_logger(), "max_inflight=%d is invalid, using 1", max_inflight_);
+      max_inflight_ = 1;
+    }
 
     if (Init() != 0 || GetModelInputSize(0, model_input_width_, model_input_height_) < 0) {
       RCLCPP_ERROR(this->get_logger(), "Failed to initialize rm_vehicle_detection");
@@ -124,9 +90,15 @@ class VehicleDetectionNode : public hobot::dnn_node::DnnNode {
     if (!rclcpp::ok() || !node_output) {
       return 0;
     }
+    const int previous_inflight = inflight_.fetch_sub(1, std::memory_order_relaxed);
+    if (previous_inflight <= 0) {
+      inflight_.store(0, std::memory_order_relaxed);
+    }
 
     auto pub_msg = std::make_unique<ai_msgs::msg::PerceptionTargets>();
     pub_msg->header = *node_output->msg_header;
+
+    LogOutputStats(node_output);
 
     std::vector<std::shared_ptr<rm_vehicle_detection::YoloV8Detection>> detections;
     const rm_vehicle_detection::YoloV8ParserConfig parser_config {
@@ -196,9 +168,91 @@ class VehicleDetectionNode : public hobot::dnn_node::DnnNode {
     return 0;
   }
 
+  void LogOutputStats(const std::shared_ptr<hobot::dnn_node::DnnNodeOutput> &node_output) {
+    if (!node_output || node_output->output_tensors.size() != 1) {
+      return;
+    }
+
+    auto &tensor = node_output->output_tensors[0];
+    hbSysFlushMem(&(tensor->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
+    const auto &shape = tensor->properties.validShape;
+    if (shape.numDimensions < 3 || shape.dimensionSize[1] < 5) {
+      return;
+    }
+
+    const int channels = shape.dimensionSize[1];
+    int anchors = shape.dimensionSize[2];
+    if (shape.numDimensions > 3 && shape.dimensionSize[3] > 0) {
+      anchors *= shape.dimensionSize[3];
+    }
+    if (anchors <= 0) {
+      return;
+    }
+
+    const auto *raw = reinterpret_cast<float *>(tensor->sysMem[0].virAddr);
+    if (raw == nullptr) {
+      return;
+    }
+
+    auto channel_min = std::vector<float>(channels, 0.0F);
+    auto channel_max = std::vector<float>(channels, 0.0F);
+    for (int c = 0; c < channels; ++c) {
+      channel_min[c] = raw[c * anchors];
+      channel_max[c] = raw[c * anchors];
+    }
+
+    double conf_sum = 0.0;
+    for (int i = 0; i < anchors; ++i) {
+      for (int c = 0; c < channels; ++c) {
+        const float value = raw[c * anchors + i];
+        channel_min[c] = std::min(channel_min[c], value);
+        channel_max[c] = std::max(channel_max[c], value);
+      }
+      conf_sum += raw[4 * anchors + i];
+    }
+
+    const float conf_min = channel_min[4];
+    const float conf_max = channel_max[4];
+    const float conf_mean = static_cast<float>(conf_sum / static_cast<double>(anchors));
+    const float conf_max_sigmoid = 1.0F / (1.0F + std::exp(-conf_max));
+
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 2000,
+      "output[0] shape=[%d,%d,%d,%d] conf_raw min=%.4f max=%.4f mean=%.4f conf_sigmoid_max=%.4f",
+      shape.dimensionSize[0],
+      channels,
+      shape.dimensionSize[2],
+      shape.numDimensions > 3 ? shape.dimensionSize[3] : 1,
+      conf_min,
+      conf_max,
+      conf_mean,
+      conf_max_sigmoid);
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 2000,
+      "output[0] channel range c0=[%.4f,%.4f] c1=[%.4f,%.4f] c2=[%.4f,%.4f] c3=[%.4f,%.4f] c4=[%.4f,%.4f]",
+      channel_min[0],
+      channel_max[0],
+      channel_min[1],
+      channel_max[1],
+      channel_min[2],
+      channel_max[2],
+      channel_min[3],
+      channel_max[3],
+      channel_min[4],
+      channel_max[4]);
+  }
+
  private:
   void OnImage(const hbm_img_msgs::msg::HbmMsg1080P::ConstSharedPtr &msg) {
     if (!rclcpp::ok() || !msg) {
+      return;
+    }
+
+    if (inflight_.load(std::memory_order_relaxed) >= max_inflight_) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 2000,
+        "Dropping vehicle frame because inference is still busy: inflight=%d limit=%d",
+        inflight_.load(std::memory_order_relaxed), max_inflight_);
       return;
     }
 
@@ -215,51 +269,44 @@ class VehicleDetectionNode : public hobot::dnn_node::DnnNode {
     output->msg_header->frame_id = std::to_string(msg->index);
     output->msg_header->stamp = msg->time_stamp;
 
-    std::shared_ptr<hobot::dnn_node::NV12PyramidInput> pyramid;
+    cv::Mat bgr_image;
     if (
-      msg->height != static_cast<uint32_t>(model_input_height_) ||
-      msg->width != static_cast<uint32_t>(model_input_width_))
-    {
-      cv::Mat resized;
-      if (
-        ResizeNV12Img(
-          reinterpret_cast<const char *>(msg->data.data()),
-          static_cast<int>(msg->height),
-          static_cast<int>(msg->width),
-          model_input_height_,
-          model_input_width_,
-          resized,
-          output->x_ratio,
-          output->y_ratio) < 0)
-      {
-        RCLCPP_ERROR(this->get_logger(), "Failed to resize NV12 image");
-        return;
-      }
-
-      const uint32_t out_width = static_cast<uint32_t>(resized.cols);
-      const uint32_t out_height = static_cast<uint32_t>(resized.rows * 2 / 3);
-      pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
-        reinterpret_cast<const char *>(resized.data),
-        out_height,
-        out_width,
-        model_input_height_,
-        model_input_width_);
-    } else {
-      pyramid = hobot::dnn_node::ImageProc::GetNV12PyramidFromNV12Img(
+      hobot::dnn_node::ImageProc::Nv12ToBGR(
         reinterpret_cast<const char *>(msg->data.data()),
-        msg->height,
-        msg->width,
-        model_input_height_,
-        model_input_width_);
-    }
-
-    if (!pyramid) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to create NV12 pyramid input");
+        static_cast<int>(msg->height),
+        static_cast<int>(msg->width),
+        bgr_image) != 0)
+    {
+      RCLCPP_ERROR(this->get_logger(), "Failed to convert NV12 image to BGR");
       return;
     }
 
-    std::vector<std::shared_ptr<hobot::dnn_node::DNNInput>> inputs {pyramid};
-    if (Run(inputs, output, nullptr, false) < 0) {
+    hbDNNTensorProperties input_properties;
+    if (GetModel()->GetInputTensorProperties(input_properties, 0) != 0) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to get model input tensor properties");
+      return;
+    }
+
+    float resize_ratio = 1.0F;
+    auto tensor = hobot::dnn_node::ImageProc::GetBGRTensorFromBGRImg(
+      bgr_image,
+      model_input_height_,
+      model_input_width_,
+      input_properties,
+      resize_ratio,
+      hobot::dnn_node::ImageType::RGB,
+      false);
+    if (!tensor) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to create RGB tensor input");
+      return;
+    }
+    output->x_ratio = static_cast<float>(msg->width) / static_cast<float>(model_input_width_);
+    output->y_ratio = static_cast<float>(msg->height) / static_cast<float>(model_input_height_);
+
+    std::vector<std::shared_ptr<hobot::dnn_node::DNNTensor>> inputs {tensor};
+    inflight_.fetch_add(1, std::memory_order_relaxed);
+    if (Run(inputs, output, true) < 0) {
+      inflight_.fetch_sub(1, std::memory_order_relaxed);
       RCLCPP_ERROR_THROTTLE(
         this->get_logger(), *this->get_clock(), 1000, "Vehicle inference run failed");
     }
@@ -273,9 +320,11 @@ class VehicleDetectionNode : public hobot::dnn_node::DnnNode {
   double nms_threshold_{0.5};
   int nms_top_k_{300};
   int task_num_{4};
+  int max_inflight_{1};
   bool log_fps_{false};
   int model_input_width_{-1};
   int model_input_height_{-1};
+  std::atomic<int> inflight_{0};
   rclcpp::Subscription<hbm_img_msgs::msg::HbmMsg1080P>::ConstSharedPtr image_subscription_;
   rclcpp::Publisher<ai_msgs::msg::PerceptionTargets>::SharedPtr publisher_;
 };

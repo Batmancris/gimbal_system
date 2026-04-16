@@ -1,6 +1,7 @@
 #include "ai_msgs/msg/perception_targets.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
 #include <algorithm>
@@ -88,7 +89,7 @@ class AutoAimVisualizerNode : public rclcpp::Node {
 
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
-      cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
+      cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
     } catch (const cv_bridge::Exception &e) {
       RCLCPP_ERROR_THROTTLE(
         get_logger(), *get_clock(), 2000, "cv_bridge conversion failed: %s", e.what());
@@ -115,6 +116,7 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       DrawTargets(frame, targets_copy);
     }
 
+    UpdateDisplayFps();
     DrawStatus(frame, targets_copy, targets_fresh);
     cv::imshow(window_name_, frame);
     cv::waitKey(1);
@@ -182,7 +184,8 @@ class AutoAimVisualizerNode : public rclcpp::Node {
     const ai_msgs::msg::PerceptionTargets &targets_msg,
     bool targets_fresh) {
     const std::string status = cv::format(
-      "fps:%u targets:%zu %s",
+      "display_fps:%.1f dnn_fps:%u targets:%zu %s",
+      display_fps_,
       targets_msg.fps,
       targets_msg.targets.size(),
       targets_fresh ? "live" : "stale");
@@ -194,6 +197,21 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       0.8,
       cv::Scalar(0, 255, 255),
       2);
+  }
+
+  void UpdateDisplayFps() {
+    const auto stamp = now();
+    if (last_frame_stamp_.nanoseconds() > 0) {
+      const double dt =
+        static_cast<double>((stamp - last_frame_stamp_).nanoseconds()) / 1.0e9;
+      if (dt > 0.0) {
+        const double instant_fps = 1.0 / dt;
+        display_fps_ = display_fps_ <= 0.0
+          ? instant_fps
+          : (0.9 * display_fps_ + 0.1 * instant_fps);
+      }
+    }
+    last_frame_stamp_ = stamp;
   }
 
   std::string image_topic_;
@@ -208,6 +226,8 @@ class AutoAimVisualizerNode : public rclcpp::Node {
   std::mutex targets_mutex_;
   ai_msgs::msg::PerceptionTargets latest_targets_;
   rclcpp::Time latest_targets_stamp_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time last_frame_stamp_{0, 0, RCL_ROS_TIME};
+  double display_fps_ = 0.0;
 };
 
 int main(int argc, char **argv) {

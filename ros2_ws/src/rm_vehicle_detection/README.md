@@ -27,6 +27,7 @@ In the integrated autoaim launch and tmux scripts, the output topic can also be 
 - `nms_threshold`: default `0.5`
 - `nms_top_k`: default `300`
 - `task_num`: default `4`
+- `max_inflight`: default `1`
 - `log_fps`: default `false`
 
 ## Model asset

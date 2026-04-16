@@ -2,7 +2,10 @@
   ros__parameters:
     camera_name: narrow_stereo
     exposure_auto_mode: 0
-    exposure_time: 12000.0
+    exposure_time: 8000.0
     gain_auto_mode: 0
-    gain: 10.0161
+    gain: 16.0
     balance_white_auto_mode: 1
+    gamma_enable: true
+    gamma_selector: 1
+    gamma: 0.7

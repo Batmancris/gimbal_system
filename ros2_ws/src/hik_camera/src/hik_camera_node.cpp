@@ -36,6 +36,9 @@ class HikCameraNode : public rclcpp::Node {
     gain_auto_mode_ = declare_parameter("gain_auto_mode", 0);
     gain_ = declare_parameter("gain", 32.0);
     balance_white_auto_mode_ = declare_parameter("balance_white_auto_mode", 0);
+    gamma_enable_ = declare_parameter("gamma_enable", false);
+    gamma_selector_ = declare_parameter("gamma_selector", 1);
+    gamma_ = declare_parameter("gamma", 1.0);
     camera_info_url_ = declare_parameter(
       "camera_info_url", "package://hik_camera/config/camera_info.yaml");
 
@@ -100,6 +103,24 @@ class HikCameraNode : public rclcpp::Node {
       return false;
     }
 
+    const auto *device_info = device_list.pDeviceInfo[0];
+    if (device_info != nullptr && device_info->nTLayerType == MV_GIGE_DEVICE) {
+      const int packet_size = MV_CC_GetOptimalPacketSize(camera_handle_);
+      if (packet_size > 0) {
+        const int ret_int = MV_CC_SetIntValue(
+          camera_handle_, "GevSCPSPacketSize", static_cast<uint32_t>(packet_size));
+        if (ret_int != MV_OK) {
+          RCLCPP_WARN(
+            get_logger(), "Failed to set GevSCPSPacketSize=%d: 0x%x", packet_size, ret_int);
+        } else {
+          RCLCPP_INFO(get_logger(), "Set GevSCPSPacketSize to %d", packet_size);
+        }
+      } else {
+        RCLCPP_WARN(
+          get_logger(), "MV_CC_GetOptimalPacketSize returned invalid value: %d", packet_size);
+      }
+    }
+
     int ret_enum = MV_CC_SetEnumValue(camera_handle_, "TriggerMode", 0);
     if (ret_enum != MV_OK) {
       RCLCPP_WARN(get_logger(), "Failed to set TriggerMode=Off: 0x%x", ret_enum);
@@ -134,6 +155,21 @@ class HikCameraNode : public rclcpp::Node {
     ret_float = MV_CC_SetFloatValue(camera_handle_, "Gain", gain_);
     if (ret_float != MV_OK) {
       RCLCPP_WARN(get_logger(), "Failed to set Gain: 0x%x", ret_float);
+    }
+
+    int ret_bool = MV_CC_SetBoolValue(camera_handle_, "GammaEnable", gamma_enable_);
+    if (ret_bool != MV_OK) {
+      RCLCPP_WARN(get_logger(), "Failed to set GammaEnable=%d: 0x%x", gamma_enable_, ret_bool);
+    }
+
+    ret_enum = MV_CC_SetEnumValue(camera_handle_, "GammaSelector", gamma_selector_);
+    if (ret_enum != MV_OK) {
+      RCLCPP_WARN(get_logger(), "Failed to set GammaSelector=%d: 0x%x", gamma_selector_, ret_enum);
+    }
+
+    ret_float = MV_CC_SetFloatValue(camera_handle_, "Gamma", gamma_);
+    if (ret_float != MV_OK) {
+      RCLCPP_WARN(get_logger(), "Failed to set Gamma: 0x%x", ret_float);
     }
 
     ret = MV_CC_GetImageInfo(camera_handle_, &img_info_);
@@ -178,16 +214,34 @@ class HikCameraNode : public rclcpp::Node {
 
   void CaptureLoop() {
     bool first_frame_logged = false;
+    int consecutive_failures = 0;
 
     while (running_.load() && rclcpp::ok()) {
       MV_FRAME_OUT out_frame;
       std::memset(&out_frame, 0, sizeof(out_frame));
       int ret = MV_CC_GetImageBuffer(camera_handle_, &out_frame, 1000);
       if (ret != MV_OK) {
+        ++consecutive_failures;
         RCLCPP_WARN_THROTTLE(
           get_logger(), *get_clock(), 1000, "Get image buffer failed: 0x%x", ret);
+
+        if (consecutive_failures >= 30) {
+          RCLCPP_WARN(
+            get_logger(),
+            "GetImageBuffer failed %d times, restarting grabbing",
+            consecutive_failures);
+          MV_CC_StopGrabbing(camera_handle_);
+          std::this_thread::sleep_for(std::chrono::milliseconds(120));
+          const int restart_ret = MV_CC_StartGrabbing(camera_handle_);
+          if (restart_ret != MV_OK) {
+            RCLCPP_ERROR(get_logger(), "MV_CC_StartGrabbing restart failed: 0x%x", restart_ret);
+          }
+          consecutive_failures = 0;
+        }
         continue;
       }
+
+      consecutive_failures = 0;
 
       if (out_frame.stFrameInfo.nWidth == 0 || out_frame.stFrameInfo.nHeight == 0) {
         MV_CC_FreeImageBuffer(camera_handle_, &out_frame);
@@ -279,6 +333,31 @@ class HikCameraNode : public rclcpp::Node {
           return result;
         }
         balance_white_auto_mode_ = static_cast<int>(param.as_int());
+      } else if (param.get_name() == "gamma_enable") {
+        const int ret = MV_CC_SetBoolValue(camera_handle_, "GammaEnable", param.as_bool());
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set gamma_enable";
+          return result;
+        }
+        gamma_enable_ = param.as_bool();
+      } else if (param.get_name() == "gamma_selector") {
+        const int ret = MV_CC_SetEnumValue(
+          camera_handle_, "GammaSelector", static_cast<unsigned int>(param.as_int()));
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set gamma_selector";
+          return result;
+        }
+        gamma_selector_ = static_cast<int>(param.as_int());
+      } else if (param.get_name() == "gamma") {
+        const int ret = MV_CC_SetFloatValue(camera_handle_, "Gamma", param.as_double());
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set gamma";
+          return result;
+        }
+        gamma_ = param.as_double();
       }
     }
 
@@ -352,6 +431,9 @@ class HikCameraNode : public rclcpp::Node {
   int gain_auto_mode_ = 0;
   double gain_ = 32.0;
   int balance_white_auto_mode_ = 0;
+  bool gamma_enable_ = false;
+  int gamma_selector_ = 1;
+  double gamma_ = 1.0;
 };
 
 }  // namespace hik_camera

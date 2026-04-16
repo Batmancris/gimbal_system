@@ -8,4 +8,5 @@ rm_vehicle_detection:
     nms_threshold: 0.5
     nms_top_k: 300
     task_num: 4
+    max_inflight: 1
     log_fps: false
