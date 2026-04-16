@@ -17,6 +17,7 @@ ros2_ws/
     ├── hik_camera
     ├── rm_armor_detection
     ├── rm_gimbal_bridge
+    ├── rm_vehicle_detection
     ├── rm_interfaces
     └── rm_utils
 ```

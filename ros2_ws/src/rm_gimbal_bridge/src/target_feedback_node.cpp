@@ -23,6 +23,7 @@ struct TargetCandidate {
   int y_offset;
   int width;
   int height;
+  double area;
 };
 
 uint16_t ClampToUInt16(double value) {
@@ -61,6 +62,8 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
     image_center_y_ = declare_parameter<double>("image_center_y", image_height_ / 2.0);
     min_confidence_ = declare_parameter<double>("min_confidence", 0.5);
     enemy_prefix_ = declare_parameter<std::string>("enemy_prefix", "");
+    allowed_target_types_ =
+      declare_parameter<std::vector<std::string>>("allowed_target_types", std::vector<std::string>{});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_when_empty_ = declare_parameter<bool>("log_when_empty", true);
 
@@ -136,6 +139,9 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
       if (!enemy_prefix_.empty() && target.type.rfind(enemy_prefix_, 0) != 0) {
         continue;
       }
+      if (!IsTargetTypeAllowed(target.type)) {
+        continue;
+      }
       if (target.rois.empty()) {
         continue;
       }
@@ -152,6 +158,7 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
       const double dx = center_x - image_center_x_;
       const double dy = center_y - image_center_y_;
       const double distance = std::hypot(dx, dy);
+      const double area = static_cast<double>(roi.rect.width) * static_cast<double>(roi.rect.height);
 
       TargetCandidate current {
         target.type,
@@ -163,6 +170,7 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
         static_cast<int>(roi.rect.y_offset),
         static_cast<int>(roi.rect.width),
         static_cast<int>(roi.rect.height),
+        area,
       };
 
       if (!best.has_value()) {
@@ -172,6 +180,10 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
 
       if (selection_mode_ == "highest_confidence") {
         if (current.confidence > best->confidence) {
+          best = current;
+        }
+      } else if (selection_mode_ == "largest_box") {
+        if (current.area > best->area) {
           best = current;
         }
       } else {
@@ -184,9 +196,22 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
     return best;
   }
 
+  bool IsTargetTypeAllowed(const std::string &type) const {
+    if (allowed_target_types_.empty()) {
+      return true;
+    }
+    for (const auto &allowed_type : allowed_target_types_) {
+      if (allowed_type == type) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   rclcpp::Subscription<ai_msgs::msg::PerceptionTargets>::SharedPtr subscription_;
   std::string input_topic_;
   std::string enemy_prefix_;
+  std::vector<std::string> allowed_target_types_;
   std::string selection_mode_;
   int image_width_ = 1280;
   int image_height_ = 1024;

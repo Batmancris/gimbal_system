@@ -35,6 +35,7 @@ struct TargetCandidate {
   double center_y;
   double confidence;
   double distance_to_center;
+  double area;
 };
 
 struct VisionDiagFrame {
@@ -121,6 +122,8 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     image_center_y_ = declare_parameter<double>("image_center_y", image_height_ / 2.0);
     min_confidence_ = declare_parameter<double>("min_confidence", 0.5);
     enemy_prefix_ = declare_parameter<std::string>("enemy_prefix", "");
+    allowed_target_types_ =
+      declare_parameter<std::vector<std::string>>("allowed_target_types", std::vector<std::string>{});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_selected_target_ = declare_parameter<bool>("log_selected_target", true);
     log_diag_feedback_ = declare_parameter<bool>("log_diag_feedback", true);
@@ -357,6 +360,9 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       if (!enemy_prefix_.empty() && target.type.rfind(enemy_prefix_, 0) != 0) {
         continue;
       }
+      if (!IsTargetTypeAllowed(target.type)) {
+        continue;
+      }
       if (target.rois.empty()) {
         continue;
       }
@@ -372,8 +378,9 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       const double dx = center_x - image_center_x_;
       const double dy = center_y - image_center_y_;
       const double distance = std::hypot(dx, dy);
+      const double area = static_cast<double>(roi.rect.width) * static_cast<double>(roi.rect.height);
 
-      TargetCandidate current {target.type, center_x, center_y, roi.confidence, distance};
+      TargetCandidate current {target.type, center_x, center_y, roi.confidence, distance, area};
       if (!best.has_value()) {
         best = current;
         continue;
@@ -382,11 +389,27 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
         if (current.confidence > best->confidence) {
           best = current;
         }
+      } else if (selection_mode_ == "largest_box") {
+        if (current.area > best->area) {
+          best = current;
+        }
       } else if (current.distance_to_center < best->distance_to_center) {
         best = current;
       }
     }
     return best;
+  }
+
+  bool IsTargetTypeAllowed(const std::string &type) const {
+    if (allowed_target_types_.empty()) {
+      return true;
+    }
+    for (const auto &allowed_type : allowed_target_types_) {
+      if (allowed_type == type) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void SendFrame(uint16_t x, uint16_t y) {
@@ -433,6 +456,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   std::string input_topic_;
   std::string serial_port_;
   std::string enemy_prefix_;
+  std::vector<std::string> allowed_target_types_;
   std::string selection_mode_;
   int baud_rate_ = 921600;
   int image_width_ = 1280;

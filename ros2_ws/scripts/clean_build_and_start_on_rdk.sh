@@ -6,7 +6,7 @@ REMOTE_SRC_DIR="${REMOTE_SRC_DIR:-${REMOTE_WS}/src}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-${REMOTE_SRC_DIR}/scripts}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyS1}"
 ENEMY_PREFIX="${ENEMY_PREFIX:-}"
-PACKAGES="${PACKAGES:-hik_camera rm_armor_detection rm_gimbal_bridge}"
+PACKAGES="${PACKAGES:-hik_camera rm_armor_detection rm_vehicle_detection rm_gimbal_bridge}"
 
 cd "${REMOTE_WS}"
 source /opt/tros/humble/setup.bash

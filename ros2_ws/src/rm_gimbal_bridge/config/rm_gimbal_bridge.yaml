@@ -9,5 +9,6 @@ rm_gimbal_bridge:
     image_center_y: 512.0
     min_confidence: 0.35
     enemy_prefix: ""
+    allowed_target_types: []
     selection_mode: "closest"
     log_selected_target: true
