@@ -1,0 +1,11 @@
+rm_vehicle_detection:
+  ros__parameters:
+    image_topic: "/hbmem_img"
+    output_topic: "/vehicle_detection/targets"
+    target_type: "vehicle"
+    model_path: "/opt/tros/lib/rm_vehicle_detection/config/quant.bin"
+    score_threshold: 0.35
+    nms_threshold: 0.5
+    nms_top_k: 300
+    task_num: 4
+    log_fps: false

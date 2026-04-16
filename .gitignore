@@ -23,6 +23,7 @@ firmware/stm32_gimbal_control/build/
 *.d
 *.elf
 *.bin
+!ros2_ws/src/rm_vehicle_detection/config/quant.bin
 *.map
 
 # =========================
