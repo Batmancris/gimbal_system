@@ -31,8 +31,11 @@ class HikCameraNode : public rclcpp::Node {
     use_sensor_data_qos_ = declare_parameter("use_sensor_data_qos", true);
     camera_name_ = declare_parameter("camera_name", "hik_camera");
     frame_id_ = declare_parameter("frame_id", "camera_optical_frame");
+    exposure_auto_mode_ = declare_parameter("exposure_auto_mode", 0);
     exposure_time_ = declare_parameter("exposure_time", 6000.0);
+    gain_auto_mode_ = declare_parameter("gain_auto_mode", 0);
     gain_ = declare_parameter("gain", 32.0);
+    balance_white_auto_mode_ = declare_parameter("balance_white_auto_mode", 0);
     camera_info_url_ = declare_parameter(
       "camera_info_url", "package://hik_camera/config/camera_info.yaml");
 
@@ -105,6 +108,22 @@ class HikCameraNode : public rclcpp::Node {
     ret_enum = MV_CC_SetEnumValue(camera_handle_, "AcquisitionMode", 2);
     if (ret_enum != MV_OK) {
       RCLCPP_WARN(get_logger(), "Failed to set AcquisitionMode=Continuous: 0x%x", ret_enum);
+    }
+
+    ret_enum = MV_CC_SetEnumValue(camera_handle_, "ExposureAuto", exposure_auto_mode_);
+    if (ret_enum != MV_OK) {
+      RCLCPP_WARN(get_logger(), "Failed to set ExposureAuto=%d: 0x%x", exposure_auto_mode_, ret_enum);
+    }
+
+    ret_enum = MV_CC_SetEnumValue(camera_handle_, "GainAuto", gain_auto_mode_);
+    if (ret_enum != MV_OK) {
+      RCLCPP_WARN(get_logger(), "Failed to set GainAuto=%d: 0x%x", gain_auto_mode_, ret_enum);
+    }
+
+    ret_enum = MV_CC_SetEnumValue(camera_handle_, "BalanceWhiteAuto", balance_white_auto_mode_);
+    if (ret_enum != MV_OK) {
+      RCLCPP_WARN(
+        get_logger(), "Failed to set BalanceWhiteAuto=%d: 0x%x", balance_white_auto_mode_, ret_enum);
     }
 
     int ret_float = MV_CC_SetFloatValue(camera_handle_, "ExposureTime", exposure_time_);
@@ -217,7 +236,16 @@ class HikCameraNode : public rclcpp::Node {
     result.successful = true;
 
     for (const auto &param : parameters) {
-      if (param.get_name() == "exposure_time") {
+      if (param.get_name() == "exposure_auto_mode") {
+        const int ret = MV_CC_SetEnumValue(
+          camera_handle_, "ExposureAuto", static_cast<unsigned int>(param.as_int()));
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set exposure_auto_mode";
+          return result;
+        }
+        exposure_auto_mode_ = static_cast<int>(param.as_int());
+      } else if (param.get_name() == "exposure_time") {
         const int ret = MV_CC_SetFloatValue(camera_handle_, "ExposureTime", param.as_double());
         if (ret != MV_OK) {
           result.successful = false;
@@ -225,6 +253,15 @@ class HikCameraNode : public rclcpp::Node {
           return result;
         }
         exposure_time_ = param.as_double();
+      } else if (param.get_name() == "gain_auto_mode") {
+        const int ret = MV_CC_SetEnumValue(
+          camera_handle_, "GainAuto", static_cast<unsigned int>(param.as_int()));
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set gain_auto_mode";
+          return result;
+        }
+        gain_auto_mode_ = static_cast<int>(param.as_int());
       } else if (param.get_name() == "gain") {
         const int ret = MV_CC_SetFloatValue(camera_handle_, "Gain", param.as_double());
         if (ret != MV_OK) {
@@ -233,6 +270,15 @@ class HikCameraNode : public rclcpp::Node {
           return result;
         }
         gain_ = param.as_double();
+      } else if (param.get_name() == "balance_white_auto_mode") {
+        const int ret = MV_CC_SetEnumValue(
+          camera_handle_, "BalanceWhiteAuto", static_cast<unsigned int>(param.as_int()));
+        if (ret != MV_OK) {
+          result.successful = false;
+          result.reason = "Failed to set balance_white_auto_mode";
+          return result;
+        }
+        balance_white_auto_mode_ = static_cast<int>(param.as_int());
       }
     }
 
@@ -301,8 +347,11 @@ class HikCameraNode : public rclcpp::Node {
   std::string camera_name_;
   std::string frame_id_;
   std::string camera_info_url_;
+  int exposure_auto_mode_ = 0;
   double exposure_time_ = 6000.0;
+  int gain_auto_mode_ = 0;
   double gain_ = 32.0;
+  int balance_white_auto_mode_ = 0;
 };
 
 }  // namespace hik_camera

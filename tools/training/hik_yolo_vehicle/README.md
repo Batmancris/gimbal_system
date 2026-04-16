@@ -7,6 +7,9 @@ Included in Git:
 - training, validation, and export entrypoint: `train_yolov8.py`
 - test-set evaluation helper: `evaluate_vehicle_test.py`
 - Hikrobot realtime detection UI: `realtime_detection_ui.py`
+  - `--backend pt`: single PT preview
+  - `--backend onnx`: single ONNX preview
+  - `--backend compare`: PT and ONNX side-by-side compare
 - Windows launcher scripts
 - Linux bootstrap and training scripts
 - training and dataset config files
@@ -33,6 +36,8 @@ set HIK_YOLO_PYTHON=E:\Anaconda\envs\hik_yolov8\python.exe
 set HIK_MVS_ROOT=E:\MVS_Win_STD_4.6.3_260205\MVS\Development
 tools\training\hik_yolo_vehicle\run_test_eval_windows.bat
 tools\training\hik_yolo_vehicle\start_detection_ui_windows.bat
+tools\training\hik_yolo_vehicle\start_detection_ui_windows.bat --backend onnx
+tools\training\hik_yolo_vehicle\start_detection_ui_windows.bat --backend compare --device cpu
 ```
 
 Ubuntu quick start:

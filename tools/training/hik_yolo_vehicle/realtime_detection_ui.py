@@ -4,19 +4,55 @@ import sys
 import time
 from ctypes import POINTER, byref, c_ubyte, cast, memset, sizeof
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
+import onnxruntime as ort
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_MODEL = BASE_DIR / "runs" / "vehicle_yolov8x_4090" / "weights" / "best.pt"
+DEFAULT_PT_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8x_4090\weights\best.pt")
+DEFAULT_ONNX_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8x_4090\weights\best.onnx")
+DEFAULT_HIK_SITE_PACKAGES = Path(r"E:\Anaconda\envs\hik_yolov8\Lib\site-packages")
 DEFAULT_MVS_ROOT = Path(r"E:\MVS_Win_STD_4.6.3_260205\MVS\Development")
 WINDOW_NAME = "HIK Camera Detection"
 CONTROL_WINDOW = "HIK Camera Controls"
 
+try:
+    import torch as _local_torch  # type: ignore
+except Exception:
+    _local_torch = None
+
+
+def bootstrap_external_site_packages() -> None:
+    site_packages_path = Path(os.environ.get("HIK_YOLO_SITE_PACKAGES", str(DEFAULT_HIK_SITE_PACKAGES)))
+    if not site_packages_path.exists():
+        return
+
+    env_root = site_packages_path.parent.parent
+    dll_dirs = (
+        env_root,
+        env_root / "Library" / "bin",
+        env_root / "DLLs",
+        site_packages_path / "torch" / "lib",
+    )
+    for dll_dir in dll_dirs:
+        if hasattr(os, "add_dll_directory") and dll_dir.exists():
+            os.add_dll_directory(str(dll_dir))
+
+    if str(site_packages_path) not in sys.path:
+        insert_at = 1 if _local_torch is not None else 0
+        sys.path.insert(insert_at, str(site_packages_path))
+
+
+bootstrap_external_site_packages()
+
 os.environ.setdefault("YOLO_CONFIG_DIR", str((BASE_DIR / ".ultralytics").resolve()))
 os.environ.setdefault("MVCAM_COMMON_RUNENV", str(DEFAULT_MVS_ROOT))
+
+import torch
+from ultralytics import YOLO
 
 mv_import_dir = Path(os.environ["MVCAM_COMMON_RUNENV"]) / "Samples" / "Python" / "MvImport"
 if str(mv_import_dir) not in sys.path:
@@ -44,7 +80,6 @@ from MvCameraControl_class import (
     PixelType_Gvsp_Mono8,
     PixelType_Gvsp_RGB8_Packed,
 )
-from ultralytics import YOLO
 
 
 def noop(_: int) -> None:
@@ -124,7 +159,9 @@ class HikCameraStream:
             print(item, flush=True)
 
         if self.device_index >= self.device_list.nDeviceNum:
-            raise RuntimeError(f"Requested device index {self.device_index}, but only {self.device_list.nDeviceNum} devices exist.")
+            raise RuntimeError(
+                f"Requested device index {self.device_index}, but only {self.device_list.nDeviceNum} devices exist."
+            )
 
         self.camera = MvCamera()
         device_info = cast(self.device_list.pDeviceInfo[self.device_index], POINTER(MV_CC_DEVICE_INFO)).contents
@@ -218,18 +255,19 @@ class HikCameraStream:
             dst_len = width * height * channels
             dst_buffer = (c_ubyte * dst_len)()
             convert_param.enDstPixelType = dst_pixel_type
-            convert_param.pDstBuffer = dst_buffer
+            convert_param.pDstBuffer = cast(dst_buffer, POINTER(c_ubyte))
             convert_param.nDstBufferSize = dst_len
 
             ret = self.camera.MV_CC_ConvertPixelTypeEx(convert_param)
             if ret != 0:
                 raise RuntimeError(f"ConvertPixelTypeEx failed: {ret_to_hex(ret)}")
 
+            image = np.frombuffer(dst_buffer, dtype=np.uint8)
             if channels == 1:
-                image = np.frombuffer(dst_buffer, dtype=np.uint8, count=dst_len).reshape(height, width)
+                image = image.reshape(height, width)
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
             else:
-                image = np.frombuffer(dst_buffer, dtype=np.uint8, count=dst_len).reshape(height, width, 3)
+                image = image.reshape(height, width, 3)
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             return image.copy()
         finally:
@@ -255,9 +293,228 @@ def save_snapshot(frame: np.ndarray) -> Path:
     return output_path
 
 
+def letterbox(image: np.ndarray, new_shape: int) -> tuple[np.ndarray, float, tuple[float, float]]:
+    shape = image.shape[:2]
+    ratio = min(new_shape / shape[0], new_shape / shape[1])
+    new_unpad = (int(round(shape[1] * ratio)), int(round(shape[0] * ratio)))
+    dw = (new_shape - new_unpad[0]) / 2
+    dh = (new_shape - new_unpad[1]) / 2
+
+    if shape[::-1] != new_unpad:
+        image = cv2.resize(image, new_unpad, interpolation=cv2.INTER_LINEAR)
+
+    top = int(round(dh - 0.1))
+    bottom = int(round(dh + 0.1))
+    left = int(round(dw - 0.1))
+    right = int(round(dw + 0.1))
+    image = cv2.copyMakeBorder(
+        image,
+        top,
+        bottom,
+        left,
+        right,
+        cv2.BORDER_CONSTANT,
+        value=(114, 114, 114),
+    )
+    return image, ratio, (dw, dh)
+
+
+def preprocess(frame: np.ndarray, imgsz: int) -> tuple[np.ndarray, float, tuple[float, float]]:
+    resized, ratio, pad = letterbox(frame, imgsz)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+    tensor = rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
+    tensor = np.expand_dims(tensor, axis=0)
+    return tensor, ratio, pad
+
+
+def flatten_outputs(output: Any) -> list[np.ndarray]:
+    arrays: list[np.ndarray] = []
+    if isinstance(output, np.ndarray):
+        arrays.append(output)
+    elif isinstance(output, (list, tuple)):
+        for item in output:
+            arrays.extend(flatten_outputs(item))
+    elif output is not None:
+        try:
+            arrays.append(np.asarray(output))
+        except Exception:
+            pass
+    return arrays
+
+
+def select_detection_tensor(arrays: list[np.ndarray]) -> np.ndarray:
+    candidates: list[np.ndarray] = []
+    for array in arrays:
+        if getattr(array, "ndim", 0) < 3:
+            continue
+        if array.shape[0] != 1:
+            continue
+        candidates.append(array)
+
+    if not candidates:
+        raise RuntimeError("no candidate detection tensor found")
+
+    def score(array: np.ndarray) -> tuple[int, int]:
+        dims = list(array.shape)
+        return (1 if 5 in dims else 0, int(np.prod(dims)))
+
+    return max(candidates, key=score)
+
+
+def canonicalize_detection_tensor(array: np.ndarray) -> np.ndarray:
+    tensor = np.asarray(array, dtype=np.float32)
+    tensor = np.squeeze(tensor)
+    if tensor.ndim == 3 and tensor.shape[-1] == 1:
+        tensor = np.squeeze(tensor, axis=-1)
+    if tensor.ndim == 2:
+        if tensor.shape[0] == 5:
+            return tensor[np.newaxis, :, :]
+        if tensor.shape[1] == 5:
+            return tensor.T[np.newaxis, :, :]
+    if tensor.ndim == 3:
+        if tensor.shape[1] == 5:
+            return tensor
+        if tensor.shape[0] == 5:
+            return tensor[np.newaxis, :, :]
+        if tensor.shape[2] == 5:
+            return np.transpose(tensor, (0, 2, 1))
+    raise RuntimeError(f"cannot canonicalize tensor shape: {array.shape}")
+
+
+def decode_predictions(
+    output: np.ndarray,
+    original_shape: tuple[int, int],
+    ratio: float,
+    pad: tuple[float, float],
+    conf_thres: float,
+    iou_thres: float,
+) -> tuple[list[tuple[int, int, int, int, float]], float]:
+    predictions = np.asarray(output, dtype=np.float32)
+    predictions = np.squeeze(predictions)
+    if predictions.ndim == 3 and predictions.shape[-1] == 1:
+        predictions = np.squeeze(predictions, axis=-1)
+    if predictions.shape[0] != 5 and predictions.shape[1] == 5:
+        predictions = predictions.T
+    if predictions.shape[0] != 5:
+        raise RuntimeError(f"unexpected output shape: {output.shape}")
+
+    scores = predictions[4]
+    top1_score = float(np.max(scores)) if scores.size else 0.0
+    keep = scores >= conf_thres
+    if not np.any(keep):
+        return [], top1_score
+
+    boxes = predictions[:4, keep].T
+    scores = scores[keep]
+    dw, dh = pad
+    boxes_xyxy: list[list[int]] = []
+    boxes_for_nms: list[list[int]] = []
+    kept_scores: list[float] = []
+
+    for (x_center, y_center, width, height), score in zip(boxes, scores):
+        x1 = (x_center - width / 2 - dw) / ratio
+        y1 = (y_center - height / 2 - dh) / ratio
+        x2 = (x_center + width / 2 - dw) / ratio
+        y2 = (y_center + height / 2 - dh) / ratio
+
+        x1 = int(max(0, min(original_shape[1] - 1, round(x1))))
+        y1 = int(max(0, min(original_shape[0] - 1, round(y1))))
+        x2 = int(max(0, min(original_shape[1] - 1, round(x2))))
+        y2 = int(max(0, min(original_shape[0] - 1, round(y2))))
+
+        if x2 <= x1 or y2 <= y1:
+            continue
+
+        boxes_xyxy.append([x1, y1, x2, y2])
+        boxes_for_nms.append([x1, y1, x2 - x1, y2 - y1])
+        kept_scores.append(float(score))
+
+    if not boxes_for_nms:
+        return [], top1_score
+
+    indices = cv2.dnn.NMSBoxes(boxes_for_nms, kept_scores, conf_thres, iou_thres)
+    if len(indices) == 0:
+        return [], top1_score
+
+    detections: list[tuple[int, int, int, int, float]] = []
+    for raw_idx in indices:
+        idx = int(raw_idx[0] if isinstance(raw_idx, (list, tuple, np.ndarray)) else raw_idx)
+        x1, y1, x2, y2 = boxes_xyxy[idx]
+        detections.append((x1, y1, x2, y2, kept_scores[idx]))
+    return detections, top1_score
+
+
+def draw_detections(
+    frame: np.ndarray,
+    detections: list[tuple[int, int, int, int, float]],
+    fps: float,
+    conf_thres: float,
+    iou_thres: float,
+    top1_score: float,
+    title: str,
+    status_suffix: str,
+) -> np.ndarray:
+    canvas = frame.copy()
+    for x1, y1, x2, y2, score in detections:
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), (80, 220, 120), 2)
+        cv2.putText(
+            canvas,
+            f"vehicle {score:.2f}",
+            (x1, max(20, y1 - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (80, 220, 120),
+            2,
+            cv2.LINE_AA,
+        )
+
+    cv2.putText(canvas, title, (16, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 180, 0), 2, cv2.LINE_AA)
+    cv2.putText(
+        canvas,
+        f"det={len(detections)} fps={fps:.1f} top1={top1_score:.3f} conf={conf_thres:.2f} iou={iou_thres:.2f}",
+        (16, 58),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (0, 200, 255),
+        2,
+        cv2.LINE_AA,
+    )
+    cv2.putText(canvas, status_suffix, (16, 88), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2, cv2.LINE_AA)
+    return canvas
+
+
+class PtDetector:
+    def __init__(self, model_path: Path, device: str) -> None:
+        self.model = YOLO(str(model_path))
+        self.model.model.eval()
+        self.device = device
+
+    def infer(self, image_tensor: np.ndarray) -> np.ndarray:
+        inputs = torch.from_numpy(image_tensor).to(self.device)
+        with torch.no_grad():
+            outputs = self.model.model(inputs)
+        arrays = flatten_outputs(outputs)
+        return canonicalize_detection_tensor(select_detection_tensor(arrays))
+
+
+class OnnxDetector:
+    def __init__(self, model_path: Path) -> None:
+        self.session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+        self.input_name = self.session.get_inputs()[0].name
+
+    def infer(self, image_tensor: np.ndarray) -> np.ndarray:
+        outputs = self.session.run(None, {self.input_name: image_tensor})
+        arrays = flatten_outputs(outputs)
+        return canonicalize_detection_tensor(select_detection_tensor(arrays))
+
+
 def build_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Live YOLO detection directly from Hikrobot MVS camera.")
-    parser.add_argument("--model", type=Path, default=DEFAULT_MODEL)
+    parser = argparse.ArgumentParser(description="Live Hikrobot camera detection with PT, ONNX, or side-by-side compare.")
+    parser.add_argument("--backend", choices=["pt", "onnx", "compare"], default="pt")
+    parser.add_argument("--model", type=Path, default=None, help="single-backend model path")
+    parser.add_argument("--pt-model", type=Path, default=DEFAULT_PT_MODEL)
+    parser.add_argument("--onnx-model", type=Path, default=DEFAULT_ONNX_MODEL)
+    parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--device-index", type=int, default=0)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--width", type=int, default=1280)
@@ -271,16 +528,83 @@ def build_argparser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_status_suffix(stream: HikCameraStream, auto_exposure: bool, exposure_us: float, auto_gain: bool, gain: float) -> str:
+    exposure_now = stream.get_float("ExposureTime")
+    gain_now = stream.get_float("Gain")
+    return (
+        f"exp={'auto' if auto_exposure else f'{(exposure_now or exposure_us):.0f}us'} "
+        f"gain={'auto' if auto_gain else f'{(gain_now or gain):.1f}'}"
+    )
+
+
+def render_single(
+    title: str,
+    frame: np.ndarray,
+    raw_output: np.ndarray,
+    ratio: float,
+    pad: tuple[float, float],
+    conf_thres: float,
+    iou_thres: float,
+    fps: float,
+    status_suffix: str,
+) -> tuple[np.ndarray, str]:
+    detections, top1_score = decode_predictions(raw_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
+    canvas = draw_detections(frame, detections, fps, conf_thres, iou_thres, top1_score, title, status_suffix)
+    status_text = f"{title.lower()} det={len(detections)} top1={top1_score:.3f} {status_suffix}"
+    return canvas, status_text
+
+
+def render_compare(
+    frame: np.ndarray,
+    pt_output: np.ndarray,
+    onnx_output: np.ndarray,
+    ratio: float,
+    pad: tuple[float, float],
+    conf_thres: float,
+    iou_thres: float,
+    fps: float,
+    status_suffix: str,
+) -> tuple[np.ndarray, str]:
+    pt_detections, pt_top1 = decode_predictions(pt_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
+    onnx_detections, onnx_top1 = decode_predictions(onnx_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
+    left = draw_detections(frame, pt_detections, fps, conf_thres, iou_thres, pt_top1, "PT", status_suffix)
+    right = draw_detections(frame, onnx_detections, fps, conf_thres, iou_thres, onnx_top1, "ONNX", status_suffix)
+    diff_mean = float(np.mean(np.abs(pt_output - onnx_output)))
+    canvas = np.hstack([left, right])
+    cv2.putText(
+        canvas,
+        f"pt_det={len(pt_detections)} onnx_det={len(onnx_detections)} abs_diff_mean={diff_mean:.6f}",
+        (16, canvas.shape[0] - 18),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        (255, 200, 0),
+        2,
+        cv2.LINE_AA,
+    )
+    status_text = (
+        f"compare pt_det={len(pt_detections)} pt_top1={pt_top1:.3f} "
+        f"onnx_det={len(onnx_detections)} onnx_top1={onnx_top1:.3f} diff_mean={diff_mean:.6f} {status_suffix}"
+    )
+    return canvas, status_text
+
+
 def main() -> None:
     args = build_argparser().parse_args()
-    model_path = args.model.resolve()
-    if not model_path.exists():
-        raise FileNotFoundError(f"model file does not exist: {model_path}")
 
-    model = YOLO(str(model_path))
+    backend = args.backend
+    pt_path = (args.model if backend == "pt" and args.model is not None else args.pt_model).resolve()
+    onnx_path = (args.model if backend == "onnx" and args.model is not None else args.onnx_model).resolve()
+
+    if backend in {"pt", "compare"} and not pt_path.exists():
+        raise FileNotFoundError(f"pt model does not exist: {pt_path}")
+    if backend in {"onnx", "compare"} and not onnx_path.exists():
+        raise FileNotFoundError(f"onnx model does not exist: {onnx_path}")
+
+    pt_detector = PtDetector(pt_path, args.device) if backend in {"pt", "compare"} else None
+    onnx_detector = OnnxDetector(onnx_path) if backend in {"onnx", "compare"} else None
+
     stream = HikCameraStream(device_index=args.device_index, width=args.width, height=args.height)
     stream.open()
-
     stream.set_exposure(args.exposure_us, args.auto_exposure)
     stream.set_gain(args.gain, args.auto_gain)
 
@@ -296,6 +620,8 @@ def main() -> None:
     )
 
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+    if backend == "compare":
+        cv2.resizeWindow(WINDOW_NAME, 1600, 800)
 
     last_render_time = time.perf_counter()
     last_status = ""
@@ -313,38 +639,50 @@ def main() -> None:
             stream.set_gain(gain, auto_gain)
 
             frame = stream.read()
-            results = model.predict(source=frame, imgsz=args.imgsz, conf=conf, iou=iou, verbose=False)
-            result = results[0]
-            annotated = result.plot()
-            if stream.actual_width and stream.actual_height:
-                cv2.resizeWindow(WINDOW_NAME, stream.actual_width, stream.actual_height)
+            tensor, ratio, pad = preprocess(frame, args.imgsz)
 
-            detection_count = len(result.boxes) if result.boxes is not None else 0
             now = time.perf_counter()
             elapsed = max(now - last_render_time, 1e-6)
             last_render_time = now
             fps = 1.0 / elapsed
+            status_suffix = build_status_suffix(stream, auto_exposure, exposure_us, auto_gain, gain)
 
-            exposure_now = stream.get_float("ExposureTime")
-            gain_now = stream.get_float("Gain")
-            status_text = (
-                f"det={detection_count} fps={fps:.1f} conf={conf:.2f} iou={iou:.2f} "
-                f"exp={'auto' if auto_exposure else f'{(exposure_now or exposure_us):.0f}us'} "
-                f"gain={'auto' if auto_gain else f'{(gain_now or gain):.1f}'}"
-            )
+            if backend == "pt":
+                assert pt_detector is not None
+                canvas, status_text = render_single("PT", frame, pt_detector.infer(tensor), ratio, pad, conf, iou, fps, status_suffix)
+            elif backend == "onnx":
+                assert onnx_detector is not None
+                canvas, status_text = render_single(
+                    "ONNX", frame, onnx_detector.infer(tensor), ratio, pad, conf, iou, fps, status_suffix
+                )
+            else:
+                assert pt_detector is not None and onnx_detector is not None
+                canvas, status_text = render_compare(
+                    frame,
+                    pt_detector.infer(tensor),
+                    onnx_detector.infer(tensor),
+                    ratio,
+                    pad,
+                    conf,
+                    iou,
+                    fps,
+                    status_suffix,
+                )
 
-            cv2.putText(annotated, status_text, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA)
+            if stream.actual_width and stream.actual_height and backend != "compare":
+                cv2.resizeWindow(WINDOW_NAME, stream.actual_width, stream.actual_height)
+
             cv2.putText(
-                annotated,
+                canvas,
                 "Keys: q=quit s=snapshot e=manual exposure a=auto exposure",
-                (12, 56),
+                (12, 116 if backend != "compare" else 146),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
                 (0, 255, 255),
                 2,
                 cv2.LINE_AA,
             )
-            cv2.imshow(WINDOW_NAME, annotated)
+            cv2.imshow(WINDOW_NAME, canvas)
 
             if status_text != last_status:
                 print(status_text, flush=True)
@@ -354,7 +692,7 @@ def main() -> None:
             if key == ord("q"):
                 break
             if key == ord("s"):
-                snapshot_path = save_snapshot(annotated)
+                snapshot_path = save_snapshot(canvas)
                 print(f"snapshot saved: {snapshot_path}", flush=True)
             if key == ord("e"):
                 cv2.setTrackbarPos("Auto Exposure", CONTROL_WINDOW, 0)

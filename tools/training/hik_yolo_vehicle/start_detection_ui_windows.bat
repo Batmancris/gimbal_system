@@ -33,7 +33,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%HIK_YOLO_PYTHON%" "%SCRIPT_DIR%realtime_detection_ui.py"
+"%HIK_YOLO_PYTHON%" "%SCRIPT_DIR%realtime_detection_ui.py" %*
 if errorlevel 1 (
     echo The detection UI exited with an error.
     pause
