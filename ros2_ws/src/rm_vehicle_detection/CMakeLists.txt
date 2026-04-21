@@ -12,6 +12,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(ai_msgs REQUIRED)
 find_package(hbm_img_msgs REQUIRED)
 find_package(dnn_node REQUIRED)
@@ -70,6 +71,7 @@ add_executable(rm_vehicle_detection_node
 
 ament_target_dependencies(rm_vehicle_detection_node
   rclcpp
+  std_msgs
   ai_msgs
   ament_index_cpp
   hbm_img_msgs

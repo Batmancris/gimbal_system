@@ -1,6 +1,6 @@
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
@@ -13,7 +13,10 @@ def generate_launch_description():
     bridge_share = get_package_share_directory("rm_gimbal_bridge")
     hik_share = get_package_share_directory("hik_camera")
     vehicle_share = get_package_share_directory("rm_vehicle_detection")
-    default_vehicle_model_path = "/opt/tros/lib/rm_vehicle_detection/config/quant.bin"
+    vehicle_prefix = get_package_prefix("rm_vehicle_detection")
+    default_vehicle_model_path = os.path.join(
+        vehicle_prefix, "lib", "rm_vehicle_detection", "config", "quant.bin"
+    )
 
     serial_port = LaunchConfiguration("serial_port")
     enemy_prefix = LaunchConfiguration("enemy_prefix")
@@ -34,8 +37,10 @@ def generate_launch_description():
         default_value=os.path.join(hik_share, "config", "camera_params.yaml"),
     )
     launch_camera_arg = DeclareLaunchArgument("launch_camera", default_value="true")
-    detector_type_arg = DeclareLaunchArgument("detector_type", default_value="armor")
-    detector_topic_arg = DeclareLaunchArgument("detector_topic", default_value="/dnn_node_sample")
+    detector_type_arg = DeclareLaunchArgument("detector_type", default_value="vehicle")
+    detector_topic_arg = DeclareLaunchArgument(
+        "detector_topic", default_value="/vehicle_detection/targets"
+    )
     vehicle_model_path_arg = DeclareLaunchArgument(
         "vehicle_model_path", default_value=default_vehicle_model_path
     )

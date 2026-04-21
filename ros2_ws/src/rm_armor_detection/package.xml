@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
   <depend>ament_index_cpp</depend>
   <depend>sensor_msgs</depend>
   <depend>hbm_img_msgs</depend>

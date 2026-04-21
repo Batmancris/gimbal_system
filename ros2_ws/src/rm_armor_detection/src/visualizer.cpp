@@ -1,8 +1,8 @@
 #include "ai_msgs/msg/perception_targets.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -42,9 +42,12 @@ class AutoAimVisualizerNode : public rclcpp::Node {
   AutoAimVisualizerNode() : Node("rm_autoaim_visualizer") {
     image_topic_ = declare_parameter<std::string>("image_topic", "/image_raw");
     targets_topic_ = declare_parameter<std::string>("targets_topic", "/dnn_node_sample");
+    debug_topic_ = declare_parameter<std::string>("debug_topic", "/vehicle_detection/debug_text");
     window_name_ = declare_parameter<std::string>("window_name", kWindowName);
     show_keypoints_ = declare_parameter<bool>("show_keypoints", true);
     target_timeout_ms_ = declare_parameter<int>("target_timeout_ms", kTargetTimeoutMs);
+    display_max_fps_ = declare_parameter<double>("display_max_fps", 8.0);
+    display_scale_ = declare_parameter<double>("display_scale", 0.5);
 
     image_sub_ = create_subscription<sensor_msgs::msg::Image>(
       image_topic_,
@@ -55,6 +58,11 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       targets_topic_,
       rclcpp::SensorDataQoS(),
       std::bind(&AutoAimVisualizerNode::OnTargets, this, std::placeholders::_1));
+
+    debug_sub_ = create_subscription<std_msgs::msg::String>(
+      debug_topic_,
+      rclcpp::SystemDefaultsQoS(),
+      std::bind(&AutoAimVisualizerNode::OnDebugText, this, std::placeholders::_1));
 
     cv::namedWindow(window_name_, cv::WINDOW_NORMAL);
     cv::resizeWindow(window_name_, 1280, 720);
@@ -87,9 +95,13 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       return;
     }
 
+    if (!ShouldRenderNow()) {
+      return;
+    }
+
     cv_bridge::CvImageConstPtr cv_ptr;
     try {
-      cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
+      cv_ptr = cv_bridge::toCvShare(msg, msg->encoding);
     } catch (const cv_bridge::Exception &e) {
       RCLCPP_ERROR_THROTTLE(
         get_logger(), *get_clock(), 2000, "cv_bridge conversion failed: %s", e.what());
@@ -101,11 +113,22 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       return;
     }
 
+    if (msg->encoding == sensor_msgs::image_encodings::RGB8) {
+      cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+    }
+
+    const double render_scale = std::clamp(display_scale_, 0.1, 1.0);
+    if (render_scale < 0.999) {
+      cv::resize(frame, frame, cv::Size(), render_scale, render_scale, cv::INTER_LINEAR);
+    }
+
     ai_msgs::msg::PerceptionTargets targets_copy;
     bool targets_fresh = false;
+    std::string debug_text_copy;
     {
       std::lock_guard<std::mutex> lock(targets_mutex_);
       targets_copy = latest_targets_;
+      debug_text_copy = latest_debug_text_;
       targets_fresh =
         (latest_targets_stamp_.nanoseconds() > 0) &&
         ((now() - latest_targets_stamp_).nanoseconds() <=
@@ -113,16 +136,28 @@ class AutoAimVisualizerNode : public rclcpp::Node {
     }
 
     if (targets_fresh) {
-      DrawTargets(frame, targets_copy);
+      DrawTargets(frame, targets_copy, render_scale);
     }
 
-    UpdateDisplayFps();
     DrawStatus(frame, targets_copy, targets_fresh);
+    DrawDebugText(frame, debug_text_copy);
     cv::imshow(window_name_, frame);
     cv::waitKey(1);
   }
 
-  void DrawTargets(cv::Mat &frame, const ai_msgs::msg::PerceptionTargets &targets_msg) {
+  void OnDebugText(const std_msgs::msg::String::SharedPtr msg) {
+    if (!msg) {
+      return;
+    }
+
+    std::lock_guard<std::mutex> lock(targets_mutex_);
+    latest_debug_text_ = msg->data;
+  }
+
+  void DrawTargets(
+    cv::Mat &frame,
+    const ai_msgs::msg::PerceptionTargets &targets_msg,
+    double render_scale) {
     for (std::size_t i = 0; i < targets_msg.targets.size(); ++i) {
       const auto &target = targets_msg.targets[i];
       if (target.rois.empty()) {
@@ -132,10 +167,14 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       const auto &roi = target.rois.front();
       const auto color = ColorForIndex(i);
 
-      const int x = std::max<int>(0, roi.rect.x_offset);
-      const int y = std::max<int>(0, roi.rect.y_offset);
-      const int w = std::max<int>(0, roi.rect.width);
-      const int h = std::max<int>(0, roi.rect.height);
+      const int x = std::max<int>(
+        0, static_cast<int>(std::lround(static_cast<double>(roi.rect.x_offset) * render_scale)));
+      const int y = std::max<int>(
+        0, static_cast<int>(std::lround(static_cast<double>(roi.rect.y_offset) * render_scale)));
+      const int w = std::max<int>(
+        0, static_cast<int>(std::lround(static_cast<double>(roi.rect.width) * render_scale)));
+      const int h = std::max<int>(
+        0, static_cast<int>(std::lround(static_cast<double>(roi.rect.height) * render_scale)));
       if (w <= 0 || h <= 0) {
         continue;
       }
@@ -167,12 +206,12 @@ class AutoAimVisualizerNode : public rclcpp::Node {
         kLineThickness);
 
       if (!show_keypoints_) {
-        continue;
-      }
+          continue;
+        }
       for (const auto &point_group : target.points) {
         for (const auto &pt : point_group.point) {
-          const int px = static_cast<int>(std::lround(pt.x));
-          const int py = static_cast<int>(std::lround(pt.y));
+          const int px = static_cast<int>(std::lround(static_cast<double>(pt.x) * render_scale));
+          const int py = static_cast<int>(std::lround(static_cast<double>(pt.y) * render_scale));
           cv::circle(frame, cv::Point(px, py), 3, color, cv::FILLED);
         }
       }
@@ -184,8 +223,7 @@ class AutoAimVisualizerNode : public rclcpp::Node {
     const ai_msgs::msg::PerceptionTargets &targets_msg,
     bool targets_fresh) {
     const std::string status = cv::format(
-      "display_fps:%.1f dnn_fps:%u targets:%zu %s",
-      display_fps_,
+      "fps:%u targets:%zu %s",
       targets_msg.fps,
       targets_msg.targets.size(),
       targets_fresh ? "live" : "stale");
@@ -199,35 +237,84 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       2);
   }
 
-  void UpdateDisplayFps() {
-    const auto stamp = now();
-    if (last_frame_stamp_.nanoseconds() > 0) {
-      const double dt =
-        static_cast<double>((stamp - last_frame_stamp_).nanoseconds()) / 1.0e9;
-      if (dt > 0.0) {
-        const double instant_fps = 1.0 / dt;
-        display_fps_ = display_fps_ <= 0.0
-          ? instant_fps
-          : (0.9 * display_fps_ + 0.1 * instant_fps);
-      }
+  void DrawDebugText(cv::Mat &frame, const std::string &debug_text) {
+    if (debug_text.empty()) {
+      return;
     }
-    last_frame_stamp_ = stamp;
+
+    std::vector<std::string> lines;
+    std::size_t start = 0;
+    while (start <= debug_text.size()) {
+      const auto end = debug_text.find('\n', start);
+      if (end == std::string::npos) {
+        lines.emplace_back(debug_text.substr(start));
+        break;
+      }
+      lines.emplace_back(debug_text.substr(start, end - start));
+      start = end + 1;
+    }
+
+    int max_width = 0;
+    int total_height = 0;
+    for (const auto &line : lines) {
+      int baseline = 0;
+      const auto size = cv::getTextSize(line, kFontFace, 0.90, 2, &baseline);
+      max_width = std::max(max_width, size.width);
+      total_height += size.height + 18;
+    }
+
+    const cv::Rect box(16, 44, std::min(frame.cols - 32, max_width + 24), total_height + 16);
+    cv::rectangle(frame, box, cv::Scalar(20, 20, 20), cv::FILLED);
+    cv::rectangle(frame, box, cv::Scalar(0, 180, 255), 1);
+
+    int y = box.y + 34;
+    for (const auto &line : lines) {
+      cv::putText(
+        frame,
+        line,
+        cv::Point(box.x + 12, y),
+        kFontFace,
+        0.90,
+        cv::Scalar(255, 255, 255),
+        2);
+      y += 38;
+    }
+  }
+
+  bool ShouldRenderNow() {
+    if (display_max_fps_ <= 0.0) {
+      return true;
+    }
+
+    const auto now_tp = std::chrono::steady_clock::now();
+    const auto min_interval =
+      std::chrono::duration<double>(1.0 / std::max(1.0, display_max_fps_));
+    if (last_render_time_.time_since_epoch().count() != 0 &&
+        now_tp - last_render_time_ < min_interval) {
+      return false;
+    }
+    last_render_time_ = now_tp;
+    return true;
   }
 
   std::string image_topic_;
   std::string targets_topic_;
+  std::string debug_topic_;
   std::string window_name_;
   bool show_keypoints_ = true;
   int target_timeout_ms_ = kTargetTimeoutMs;
+  double display_max_fps_ = 8.0;
+  double display_scale_ = 0.5;
+  std::chrono::steady_clock::time_point last_render_time_{};
 
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Subscription<ai_msgs::msg::PerceptionTargets>::SharedPtr targets_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr debug_sub_;
 
   std::mutex targets_mutex_;
   ai_msgs::msg::PerceptionTargets latest_targets_;
+  std::string latest_debug_text_;
   rclcpp::Time latest_targets_stamp_{0, 0, RCL_ROS_TIME};
-  rclcpp::Time last_frame_stamp_{0, 0, RCL_ROS_TIME};
-  double display_fps_ = 0.0;
 };
 
 int main(int argc, char **argv) {

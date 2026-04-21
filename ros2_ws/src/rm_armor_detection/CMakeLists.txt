@@ -19,6 +19,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(ai_msgs REQUIRED)
@@ -123,6 +124,7 @@ ament_target_dependencies(
 ament_target_dependencies(
   ${PROJECT_NAME}_visualizer
   rclcpp
+  std_msgs
   cv_bridge
   sensor_msgs
   ai_msgs

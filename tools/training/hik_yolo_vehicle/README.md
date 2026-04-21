@@ -6,6 +6,11 @@ Included in Git:
 
 - training, validation, and export entrypoint: `train_yolov8.py`
 - test-set evaluation helper: `evaluate_vehicle_test.py`
+- export consistency validator: `validate_pt_onnx_pipeline.py`
+- quant-stage ONNX inspector: `inspect_onnx_stage_outputs.py`
+- opset-11 compatibility fixer for controlled experiments: `fix_split_for_opset11.py`
+- unified X5 quantization launcher: `run_x5_quant_pipeline.sh`
+- sample X5 mapper config: `x5_quant_best_nv12.yaml`
 - Hikrobot realtime detection UI: `realtime_detection_ui.py`
   - `--backend pt`: single PT preview
   - `--backend onnx`: single ONNX preview
@@ -45,4 +50,18 @@ Ubuntu quick start:
 ```bash
 bash tools/training/hik_yolo_vehicle/scripts/check_env.sh
 bash tools/training/hik_yolo_vehicle/scripts/train.sh
+```
+
+Recommended export and validation flow:
+
+```bash
+python tools/training/hik_yolo_vehicle/train_yolov8.py --mode export --device cpu
+python tools/training/hik_yolo_vehicle/validate_pt_onnx_pipeline.py \
+  --pt /path/to/best.pt \
+  --onnx /path/to/best.onnx \
+  --image-dir /path/to/test/images
+python tools/training/hik_yolo_vehicle/inspect_onnx_stage_outputs.py \
+  --reference-onnx /path/to/best.onnx \
+  --candidate-onnx /path/to/optimized_float_model.onnx /path/to/calibrated_model.onnx /path/to/quantized_model.onnx \
+  --image-dir /path/to/test/images
 ```

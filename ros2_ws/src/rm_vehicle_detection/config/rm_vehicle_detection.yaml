@@ -3,10 +3,12 @@ rm_vehicle_detection:
     image_topic: "/hbmem_img"
     output_topic: "/vehicle_detection/targets"
     target_type: "vehicle"
-    model_path: "/opt/tros/lib/rm_vehicle_detection/config/quant.bin"
-    score_threshold: 0.35
-    nms_threshold: 0.5
+    box_format: "cxcywh"
+    score_threshold: 0.10
+    nms_threshold: 0.45
     nms_top_k: 300
     task_num: 4
-    max_inflight: 1
     log_fps: false
+    publish_debug_text: false
+    debug_anchor_logs: false
+    sample_roi_logs: false

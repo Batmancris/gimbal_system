@@ -23,11 +23,11 @@ In the integrated autoaim launch and tmux scripts, the output topic can also be 
 - `output_topic`: default `/vehicle_detection/targets`
 - `target_type`: default `vehicle`
 - `model_path`: default `/opt/tros/lib/rm_vehicle_detection/config/quant.bin`
+- `box_format`: default `xyxy`, set to `cxcywh` if the deployed graph still outputs center-width-height boxes
 - `score_threshold`: default `0.35`
 - `nms_threshold`: default `0.5`
 - `nms_top_k`: default `300`
 - `task_num`: default `4`
-- `max_inflight`: default `1`
 - `log_fps`: default `false`
 
 ## Model asset
@@ -40,6 +40,9 @@ The parser assumes a standard YOLOv8 detect-style PTQ export with:
 - three output scales
 - DFL bbox regression
 - one class by default
+- one of two explicit raw box formats:
+  - `xyxy`: quantized graph already emits `[x1, y1, x2, y2, score]`
+  - `cxcywh`: graph still emits `[cx, cy, w, h, score]`
 
 If the exported tensor order or head layout changes, update `src/parser.cpp`.
 

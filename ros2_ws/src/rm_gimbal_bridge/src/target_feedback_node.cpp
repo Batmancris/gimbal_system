@@ -55,7 +55,7 @@ std::string FrameToHexString(const std::array<uint8_t, 8> &frame) {
 class GimbalTargetFeedbackNode : public rclcpp::Node {
  public:
   GimbalTargetFeedbackNode() : Node("rm_gimbal_feedback") {
-    input_topic_ = declare_parameter<std::string>("input_topic", "/dnn_node_sample");
+    input_topic_ = declare_parameter<std::string>("input_topic", "/vehicle_detection/targets");
     image_width_ = declare_parameter<int>("image_width", 1280);
     image_height_ = declare_parameter<int>("image_height", 1024);
     image_center_x_ = declare_parameter<double>("image_center_x", image_width_ / 2.0);
@@ -63,7 +63,8 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
     min_confidence_ = declare_parameter<double>("min_confidence", 0.5);
     enemy_prefix_ = declare_parameter<std::string>("enemy_prefix", "");
     allowed_target_types_ =
-      declare_parameter<std::vector<std::string>>("allowed_target_types", std::vector<std::string>{});
+      declare_parameter<std::vector<std::string>>(
+      "allowed_target_types", std::vector<std::string>{"vehicle"});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_when_empty_ = declare_parameter<bool>("log_when_empty", true);
 

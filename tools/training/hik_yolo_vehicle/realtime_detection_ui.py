@@ -12,8 +12,8 @@ import onnxruntime as ort
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_PT_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8x_4090\weights\best.pt")
-DEFAULT_ONNX_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8x_4090\weights\best.onnx")
+DEFAULT_PT_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8n_x5_640\weights\best.pt")
+DEFAULT_ONNX_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8n_x5_640\weights\best.onnx")
 DEFAULT_HIK_SITE_PACKAGES = Path(r"E:\Anaconda\envs\hik_yolov8\Lib\site-packages")
 DEFAULT_MVS_ROOT = Path(r"E:\MVS_Win_STD_4.6.3_260205\MVS\Development")
 WINDOW_NAME = "HIK Camera Detection"
@@ -444,6 +444,121 @@ def decode_predictions(
     return detections, top1_score
 
 
+def extract_top_anchor_debug(
+    output: np.ndarray,
+    original_shape: tuple[int, int],
+    ratio: float,
+    pad: tuple[float, float],
+) -> dict[str, Any]:
+    predictions = np.asarray(output, dtype=np.float32)
+    predictions = np.squeeze(predictions)
+    if predictions.ndim == 3 and predictions.shape[-1] == 1:
+        predictions = np.squeeze(predictions, axis=-1)
+    if predictions.shape[0] != 5 and predictions.shape[1] == 5:
+        predictions = predictions.T
+    if predictions.shape[0] != 5:
+        raise RuntimeError(f"unexpected output shape: {output.shape}")
+
+    scores = predictions[4]
+    if scores.size == 0:
+        return {
+            "anchor": -1,
+            "score": 0.0,
+            "raw": [0.0, 0.0, 0.0, 0.0],
+            "decoded_cxcywh_xyxy": None,
+            "direct_xyxy": None,
+        }
+
+    anchor = int(np.argmax(scores))
+    raw0 = float(predictions[0, anchor])
+    raw1 = float(predictions[1, anchor])
+    raw2 = float(predictions[2, anchor])
+    raw3 = float(predictions[3, anchor])
+    score = float(scores[anchor])
+
+    dw, dh = pad
+    x1 = (raw0 - raw2 / 2 - dw) / ratio
+    y1 = (raw1 - raw3 / 2 - dh) / ratio
+    x2 = (raw0 + raw2 / 2 - dw) / ratio
+    y2 = (raw1 + raw3 / 2 - dh) / ratio
+
+    x1 = int(max(0, min(original_shape[1] - 1, round(x1))))
+    y1 = int(max(0, min(original_shape[0] - 1, round(y1))))
+    x2 = int(max(0, min(original_shape[1] - 1, round(x2))))
+    y2 = int(max(0, min(original_shape[0] - 1, round(y2))))
+
+    decoded_cxcywh_xyxy = None
+    if x2 > x1 and y2 > y1:
+        decoded_cxcywh_xyxy = (x1, y1, x2, y2)
+
+    direct_x1 = (raw0 - dw) / ratio
+    direct_y1 = (raw1 - dh) / ratio
+    direct_x2 = (raw2 - dw) / ratio
+    direct_y2 = (raw3 - dh) / ratio
+
+    direct_x1 = int(max(0, min(original_shape[1] - 1, round(direct_x1))))
+    direct_y1 = int(max(0, min(original_shape[0] - 1, round(direct_y1))))
+    direct_x2 = int(max(0, min(original_shape[1] - 1, round(direct_x2))))
+    direct_y2 = int(max(0, min(original_shape[0] - 1, round(direct_y2))))
+
+    direct_xyxy = None
+    if direct_x2 > direct_x1 and direct_y2 > direct_y1:
+        direct_xyxy = (direct_x1, direct_y1, direct_x2, direct_y2)
+
+    return {
+        "anchor": anchor,
+        "score": score,
+        "raw": [raw0, raw1, raw2, raw3],
+        "decoded_cxcywh_xyxy": decoded_cxcywh_xyxy,
+        "direct_xyxy": direct_xyxy,
+    }
+
+
+def draw_raw_debug(
+    canvas: np.ndarray,
+    debug_info: dict[str, Any],
+    title: str,
+    y_start: int,
+) -> None:
+    raw0, raw1, raw2, raw3 = debug_info["raw"]
+    anchor = debug_info["anchor"]
+    score = debug_info["score"]
+    decoded_cxcywh_xyxy = debug_info["decoded_cxcywh_xyxy"]
+    direct_xyxy = debug_info["direct_xyxy"]
+
+    lines = [
+        f"{title.lower()} top1 anchor={anchor} score={score:.4f}",
+        f"raw0={raw0:.4f} raw1={raw1:.4f} raw2={raw2:.4f} raw3={raw3:.4f}",
+    ]
+    if decoded_cxcywh_xyxy is None:
+        lines.append("cxcywh->xyxy: invalid")
+    else:
+        x1, y1, x2, y2 = decoded_cxcywh_xyxy
+        lines.append(f"cxcywh->xyxy=({x1},{y1},{x2},{y2})")
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 120, 255), 1)
+    if direct_xyxy is None:
+        lines.append("direct xyxy: invalid")
+    else:
+        x1, y1, x2, y2 = direct_xyxy
+        lines.append(f"direct xyxy=({x1},{y1},{x2},{y2})")
+        cv2.rectangle(canvas, (x1, y1), (x2, y2), (255, 80, 80), 1)
+
+    box_height = 34 * len(lines) + 16
+    cv2.rectangle(canvas, (10, y_start - 22), (min(canvas.shape[1] - 10, 980), y_start - 22 + box_height), (20, 20, 20), -1)
+    cv2.rectangle(canvas, (10, y_start - 22), (min(canvas.shape[1] - 10, 980), y_start - 22 + box_height), (0, 180, 255), 1)
+    for idx, line in enumerate(lines):
+        cv2.putText(
+            canvas,
+            line,
+            (20, y_start + idx * 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.72,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+
 def draw_detections(
     frame: np.ndarray,
     detections: list[tuple[int, int, int, int, float]],
@@ -498,8 +613,34 @@ class PtDetector:
 
 
 class OnnxDetector:
-    def __init__(self, model_path: Path) -> None:
-        self.session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+    def __init__(self, model_path: Path, use_fixed_fallback: bool = False) -> None:
+        resolved_model = model_path.resolve()
+        candidates = [resolved_model]
+        if use_fixed_fallback and resolved_model.name == "best.onnx":
+            candidates.append(resolved_model.with_name("best_fixed.onnx"))
+
+        last_error: Exception | None = None
+        self.model_path: Path | None = None
+        self.session = None
+        for candidate in candidates:
+            if not candidate.exists():
+                continue
+            try:
+                self.session = ort.InferenceSession(str(candidate), providers=["CPUExecutionProvider"])
+                self.model_path = candidate
+                break
+            except Exception as exc:
+                last_error = exc
+
+        if self.session is None:
+            if last_error is not None:
+                raise RuntimeError(
+                    f"failed to load ONNX model from candidates: {', '.join(str(p) for p in candidates)}"
+                ) from last_error
+            raise FileNotFoundError(
+                f"onnx model does not exist in candidates: {', '.join(str(p) for p in candidates)}"
+            )
+
         self.input_name = self.session.get_inputs()[0].name
 
     def infer(self, image_tensor: np.ndarray) -> np.ndarray:
@@ -514,6 +655,11 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--model", type=Path, default=None, help="single-backend model path")
     parser.add_argument("--pt-model", type=Path, default=DEFAULT_PT_MODEL)
     parser.add_argument("--onnx-model", type=Path, default=DEFAULT_ONNX_MODEL)
+    parser.add_argument(
+        "--onnx-fallback-fixed",
+        action="store_true",
+        help="when using best.onnx, also try best_fixed.onnx if loading the un-fixed model fails",
+    )
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--device-index", type=int, default=0)
     parser.add_argument("--imgsz", type=int, default=640)
@@ -550,6 +696,8 @@ def render_single(
 ) -> tuple[np.ndarray, str]:
     detections, top1_score = decode_predictions(raw_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
     canvas = draw_detections(frame, detections, fps, conf_thres, iou_thres, top1_score, title, status_suffix)
+    debug_info = extract_top_anchor_debug(raw_output, frame.shape[:2], ratio, pad)
+    draw_raw_debug(canvas, debug_info, title, 126)
     status_text = f"{title.lower()} det={len(detections)} top1={top1_score:.3f} {status_suffix}"
     return canvas, status_text
 
@@ -569,6 +717,8 @@ def render_compare(
     onnx_detections, onnx_top1 = decode_predictions(onnx_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
     left = draw_detections(frame, pt_detections, fps, conf_thres, iou_thres, pt_top1, "PT", status_suffix)
     right = draw_detections(frame, onnx_detections, fps, conf_thres, iou_thres, onnx_top1, "ONNX", status_suffix)
+    draw_raw_debug(left, extract_top_anchor_debug(pt_output, frame.shape[:2], ratio, pad), "PT", 126)
+    draw_raw_debug(right, extract_top_anchor_debug(onnx_output, frame.shape[:2], ratio, pad), "ONNX", 126)
     diff_mean = float(np.mean(np.abs(pt_output - onnx_output)))
     canvas = np.hstack([left, right])
     cv2.putText(
@@ -601,7 +751,10 @@ def main() -> None:
         raise FileNotFoundError(f"onnx model does not exist: {onnx_path}")
 
     pt_detector = PtDetector(pt_path, args.device) if backend in {"pt", "compare"} else None
-    onnx_detector = OnnxDetector(onnx_path) if backend in {"onnx", "compare"} else None
+    onnx_detector = OnnxDetector(
+        onnx_path,
+        use_fixed_fallback=args.onnx_fallback_fixed or onnx_path.name == "best.onnx",
+    ) if backend in {"onnx", "compare"} else None
 
     stream = HikCameraStream(device_index=args.device_index, width=args.width, height=args.height)
     stream.open()

@@ -1,11 +1,18 @@
 import argparse
 import os
+import tempfile
 from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
 import torch
 import yaml
-from ultralytics import YOLO
 
+RUNTIME_DIR = Path(tempfile.gettempdir()).resolve() / "hik_yolov8_runtime"
+RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", str((RUNTIME_DIR / "ultralytics").resolve()))
+
+from ultralytics import YOLO
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -46,9 +53,9 @@ def resolve_dataset_yaml(path: Path) -> Path:
 
     data["path"] = root_path.as_posix()
 
-    tmp_dir = BASE_DIR / ".tmp"
+    tmp_dir = RUNTIME_DIR / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    resolved_yaml = tmp_dir / f"{path.stem}_resolved.yaml"
+    resolved_yaml = tmp_dir / f"{path.stem}_resolved_{os.getpid()}_{uuid4().hex[:8]}.yaml"
     resolved_yaml.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return resolved_yaml
 
@@ -193,6 +200,10 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--cache", type=str, default=None, help="cache mode override, e.g. true/false/ram/disk")
     parser.add_argument("--close-mosaic", dest="close_mosaic", type=int, default=None)
     parser.add_argument("--format", type=str, default=None, help="export format, e.g. onnx")
+    parser.add_argument("--simplify", type=str, default=None, help="ONNX simplify flag override, e.g. true/false")
+    parser.add_argument("--dynamic", type=str, default=None, help="ONNX dynamic flag override, e.g. true/false")
+    parser.add_argument("--half", type=str, default=None, help="ONNX half precision flag override, e.g. true/false")
+    parser.add_argument("--opset", type=int, default=None, help="ONNX opset version override")
     return parser
 
 
@@ -214,9 +225,16 @@ def main() -> None:
         "name": args.name,
         "cache": args.cache,
         "close_mosaic": args.close_mosaic,
+        "simplify": args.simplify,
+        "dynamic": args.dynamic,
+        "half": args.half,
+        "opset": args.opset,
     }
     cfg = merge_dict(train_cfg, overrides)
     cfg["cache"] = normalize_cache_value(cfg.get("cache"))
+    cfg["simplify"] = normalize_cache_value(cfg.get("simplify"))
+    cfg["dynamic"] = normalize_cache_value(cfg.get("dynamic"))
+    cfg["half"] = normalize_cache_value(cfg.get("half"))
     log_stage(f"Resolved train config: {train_cfg_path}")
     log_stage(f"Resolved data config: {data_cfg_path}")
     dataset_root = validate_dataset_layout(data_cfg_path)
@@ -312,14 +330,22 @@ def main() -> None:
     export_path = resolve_local_path(export_weights, base_dir=BASE_DIR)
     if export_path is not None:
         export_weights = str(export_path)
-    YOLO(export_weights).export(
-        format=args.format or cfg.get("export_format", "onnx"),
-        imgsz=cfg.get("imgsz", 640),
-        device=resolved_device,
-        simplify=cfg.get("simplify", True),
-        dynamic=cfg.get("dynamic", False),
-        half=cfg.get("half", False),
-    )
+    export_format = args.format or cfg.get("export_format", "onnx")
+    export_args: dict[str, Any] = {
+        "format": export_format,
+        "imgsz": cfg.get("imgsz", 640),
+        "device": resolved_device,
+    }
+
+    if export_format == "onnx":
+        export_args.update({
+            "simplify": cfg.get("simplify", True),
+            "dynamic": cfg.get("dynamic", False),
+            "half": cfg.get("half", False),
+            "opset": cfg.get("opset", 10),
+        })
+
+    YOLO(export_weights).export(**export_args)
 
 
 if __name__ == "__main__":

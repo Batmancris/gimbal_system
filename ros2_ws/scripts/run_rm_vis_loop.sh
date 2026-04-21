@@ -5,7 +5,10 @@ DISPLAY_VALUE="${DISPLAY_VALUE:-:0}"
 XAUTHORITY_VALUE="${XAUTHORITY_VALUE:-/home/sunrise/.Xauthority}"
 XDG_RUNTIME_DIR_VALUE="${XDG_RUNTIME_DIR_VALUE:-/run/user/1000}"
 VIS_DELAY_SEC="${VIS_DELAY_SEC:-3}"
-DETECTOR_TOPIC="${DETECTOR_TOPIC:-/dnn_node_sample}"
+DETECTOR_TOPIC="${DETECTOR_TOPIC:-/vehicle_detection/targets}"
+VIS_MAX_FPS="${VIS_MAX_FPS:-8.0}"
+VIS_SCALE="${VIS_SCALE:-0.5}"
+VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/vehicle_detection/debug_text}"
 cd "${REMOTE_WS}" || exit 1
 source /opt/tros/humble/setup.bash
 source "${REMOTE_WS}/install/setup.bash" || true
@@ -20,7 +23,10 @@ while true; do
 ' "$(date +%F_%T)"
   ros2 run rm_armor_detection rm_armor_detection_visualizer --ros-args \
     -p image_topic:=/image_raw \
-    -p targets_topic:="${DETECTOR_TOPIC}"
+    -p targets_topic:="${DETECTOR_TOPIC}" \
+    -p debug_topic:="${VIS_DEBUG_TOPIC}" \
+    -p display_max_fps:="${VIS_MAX_FPS}" \
+    -p display_scale:="${VIS_SCALE}"
   rc=$?
   printf '[%s] rm_vis exited rc=%s, restarting in 2s
 ' "$(date +%F_%T)" "${rc}"
