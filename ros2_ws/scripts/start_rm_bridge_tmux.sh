@@ -2,8 +2,18 @@
 set -eo pipefail
 
 REMOTE_WS="${REMOTE_WS:-/home/sunrise/rm_ws}"
-REMOTE_SRC_DIR="${REMOTE_SRC_DIR:-${REMOTE_WS}/src}"
-REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-${REMOTE_SRC_DIR}/scripts}"
+if [ -n "${REMOTE_SRC_DIR:-}" ]; then
+  REMOTE_SRC_DIR="${REMOTE_SRC_DIR}"
+elif [ -d "${REMOTE_WS}/src/ros2_ws/scripts" ]; then
+  REMOTE_SRC_DIR="${REMOTE_WS}/src/ros2_ws"
+else
+  REMOTE_SRC_DIR="${REMOTE_WS}/src"
+fi
+if [ -n "${REMOTE_SCRIPT_DIR:-}" ]; then
+  REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR}"
+else
+  REMOTE_SCRIPT_DIR="${REMOTE_SRC_DIR}/scripts"
+fi
 TMUX_SOCKET="${TMUX_SOCKET:-bridge}"
 
 tmux_cmd() {

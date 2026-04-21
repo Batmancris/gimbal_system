@@ -45,9 +45,10 @@ class AutoAimVisualizerNode : public rclcpp::Node {
     debug_topic_ = declare_parameter<std::string>("debug_topic", "/vehicle_detection/debug_text");
     window_name_ = declare_parameter<std::string>("window_name", kWindowName);
     show_keypoints_ = declare_parameter<bool>("show_keypoints", true);
+    show_debug_text_ = declare_parameter<bool>("show_debug_text", false);
     target_timeout_ms_ = declare_parameter<int>("target_timeout_ms", kTargetTimeoutMs);
-    display_max_fps_ = declare_parameter<double>("display_max_fps", 8.0);
-    display_scale_ = declare_parameter<double>("display_scale", 0.5);
+    display_max_fps_ = declare_parameter<double>("display_max_fps", 0.0);
+    display_scale_ = declare_parameter<double>("display_scale", 1.0);
 
     image_sub_ = create_subscription<sensor_msgs::msg::Image>(
       image_topic_,
@@ -59,10 +60,12 @@ class AutoAimVisualizerNode : public rclcpp::Node {
       rclcpp::SensorDataQoS(),
       std::bind(&AutoAimVisualizerNode::OnTargets, this, std::placeholders::_1));
 
-    debug_sub_ = create_subscription<std_msgs::msg::String>(
-      debug_topic_,
-      rclcpp::SystemDefaultsQoS(),
-      std::bind(&AutoAimVisualizerNode::OnDebugText, this, std::placeholders::_1));
+    if (show_debug_text_) {
+      debug_sub_ = create_subscription<std_msgs::msg::String>(
+        debug_topic_,
+        rclcpp::SystemDefaultsQoS(),
+        std::bind(&AutoAimVisualizerNode::OnDebugText, this, std::placeholders::_1));
+    }
 
     cv::namedWindow(window_name_, cv::WINDOW_NORMAL);
     cv::resizeWindow(window_name_, 1280, 720);
@@ -140,7 +143,9 @@ class AutoAimVisualizerNode : public rclcpp::Node {
     }
 
     DrawStatus(frame, targets_copy, targets_fresh);
-    DrawDebugText(frame, debug_text_copy);
+    if (show_debug_text_) {
+      DrawDebugText(frame, debug_text_copy);
+    }
     cv::imshow(window_name_, frame);
     cv::waitKey(1);
   }
@@ -302,9 +307,10 @@ class AutoAimVisualizerNode : public rclcpp::Node {
   std::string debug_topic_;
   std::string window_name_;
   bool show_keypoints_ = true;
+  bool show_debug_text_ = false;
   int target_timeout_ms_ = kTargetTimeoutMs;
-  double display_max_fps_ = 8.0;
-  double display_scale_ = 0.5;
+  double display_max_fps_ = 0.0;
+  double display_scale_ = 1.0;
   std::chrono::steady_clock::time_point last_render_time_{};
 
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;

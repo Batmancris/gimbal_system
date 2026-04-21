@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set +u
 REMOTE_WS="${REMOTE_WS:-/home/sunrise/rm_ws}"
-DISPLAY_VALUE="${DISPLAY_VALUE:-:0}"
+DISPLAY_VALUE="${DISPLAY_VALUE:-:0.0}"
 XAUTHORITY_VALUE="${XAUTHORITY_VALUE:-/home/sunrise/.Xauthority}"
 XDG_RUNTIME_DIR_VALUE="${XDG_RUNTIME_DIR_VALUE:-/run/user/1000}"
 VIS_DELAY_SEC="${VIS_DELAY_SEC:-3}"
 DETECTOR_TOPIC="${DETECTOR_TOPIC:-/vehicle_detection/targets}"
-VIS_MAX_FPS="${VIS_MAX_FPS:-8.0}"
-VIS_SCALE="${VIS_SCALE:-0.5}"
+VIS_MAX_FPS="${VIS_MAX_FPS:-0.0}"
+VIS_SCALE="${VIS_SCALE:-1.0}"
 VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/vehicle_detection/debug_text}"
 cd "${REMOTE_WS}" || exit 1
 source /opt/tros/humble/setup.bash

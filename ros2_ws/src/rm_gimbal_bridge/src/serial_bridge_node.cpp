@@ -113,6 +113,13 @@ double ClampAbs(const double value, const double limit) {
   return ClampMagnitude(value, limit);
 }
 
+double ComputeInterpolationAlpha(const double dt, const double rate_hz) {
+  if (rate_hz <= 0.0) {
+    return 1.0;
+  }
+  return std::clamp(dt * rate_hz, 0.05, 1.0);
+}
+
 uint16_t ReadLe16(const uint8_t *data) {
   return static_cast<uint16_t>(static_cast<uint16_t>(data[0]) |
                                (static_cast<uint16_t>(data[1]) << 8));
@@ -153,6 +160,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     require_lower_vision_enabled_ =
       declare_parameter<bool>("require_lower_vision_enabled", true);
     follow_smoothing_alpha_ = declare_parameter<double>("follow_smoothing_alpha", 0.18);
+    follow_interp_rate_hz_ = declare_parameter<double>("follow_interp_rate_hz", 10.0);
     follow_control_mode_name_ =
       declare_parameter<std::string>("follow_control_mode", "light_predict");
     follow_max_step_px_ = declare_parameter<double>("follow_max_step_px", 24.0);
@@ -345,12 +353,17 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
 
     const auto predicted =
       PredictTargetCenter(target.center_x, target.center_y, dt, stamp);
+    const double interp_alpha = ComputeInterpolationAlpha(dt, follow_interp_rate_hz_);
     if (follow_control_mode_ == FollowControlMode::kPidPredict) {
       const double alpha = std::clamp(follow_smoothing_alpha_, 0.0, 1.0);
+      const double interpolated_x =
+        filtered_center_x_ + (predicted.first - filtered_center_x_) * interp_alpha;
+      const double interpolated_y =
+        filtered_center_y_ + (predicted.second - filtered_center_y_) * interp_alpha;
       const double desired_x =
-        filtered_center_x_ + (predicted.first - filtered_center_x_) * alpha;
+        filtered_center_x_ + (interpolated_x - filtered_center_x_) * alpha;
       const double desired_y =
-        filtered_center_y_ + (predicted.second - filtered_center_y_) * alpha;
+        filtered_center_y_ + (interpolated_y - filtered_center_y_) * alpha;
 
       const double error_x = desired_x - filtered_center_x_;
       const double error_y = desired_y - filtered_center_y_;
@@ -372,10 +385,14 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       ResetControllerState();
       const double alpha = std::clamp(follow_smoothing_alpha_, 0.0, 1.0);
       const double gain = std::clamp(light_follow_gain_, 0.0, 1.0);
+      const double interpolated_x =
+        filtered_center_x_ + (predicted.first - filtered_center_x_) * interp_alpha;
+      const double interpolated_y =
+        filtered_center_y_ + (predicted.second - filtered_center_y_) * interp_alpha;
       const double desired_x =
-        filtered_center_x_ + (predicted.first - filtered_center_x_) * gain;
+        filtered_center_x_ + (interpolated_x - filtered_center_x_) * gain;
       const double desired_y =
-        filtered_center_y_ + (predicted.second - filtered_center_y_) * gain;
+        filtered_center_y_ + (interpolated_y - filtered_center_y_) * gain;
       const double limited_step_x = ClampMagnitude(
         desired_x - filtered_center_x_, follow_max_step_px_);
       const double limited_step_y = ClampMagnitude(
@@ -683,6 +700,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   double image_center_y_ = 512.0;
   double min_confidence_ = 0.5;
   double follow_smoothing_alpha_ = 0.18;
+  double follow_interp_rate_hz_ = 10.0;
   double follow_max_step_px_ = 24.0;
   double follow_deadband_px_ = 12.0;
   double light_follow_gain_ = 0.40;

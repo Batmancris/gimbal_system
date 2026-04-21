@@ -120,26 +120,26 @@
 #define VISION_IMAGE_HEIGHT       1024.0f
 #define VISION_CENTER_X           (VISION_IMAGE_WIDTH * 0.5f)
 #define VISION_CENTER_Y           (VISION_IMAGE_HEIGHT * 0.5f)
-#define VISION_X_DEADBAND         6.0f
-#define VISION_Y_DEADBAND         6.0f
+#define VISION_X_DEADBAND         4.0f
+#define VISION_Y_DEADBAND         4.0f
 #define VISION_YAW_PIXEL_TO_RAD   0.000014f
 #define VISION_PITCH_PIXEL_TO_RAD 0.000014f
-#define VISION_YAW_PID_KP         0.000220f
+#define VISION_YAW_PID_KP         0.000260f
 #define VISION_YAW_PID_KI         0.0f
 #define VISION_YAW_PID_KD         0.0f
-#define VISION_PITCH_PID_KP       0.000180f
+#define VISION_PITCH_PID_KP       0.000210f
 #define VISION_PITCH_PID_KI       0.0f
 #define VISION_PITCH_PID_KD       0.0f
 #define VISION_PID_MAX_IOUT       0.0f
 #define VISION_PID_MAX_OUT        VISION_MAX_ANGLE_STEP
-#define VISION_MAX_ANGLE_STEP     0.0300f
-#define VISION_ERROR_SMOOTH_ALPHA 0.34f
-#define VISION_ERROR_FAST_ALPHA   0.55f
-#define VISION_FAST_ERROR_THRESHOLD 96.0f
+#define VISION_MAX_ANGLE_STEP     0.0200f
+#define VISION_ERROR_SMOOTH_ALPHA 0.26f
+#define VISION_ERROR_FAST_ALPHA   0.45f
+#define VISION_FAST_ERROR_THRESHOLD 72.0f
 #define GIMBAL_PITCH_FOLLOW_MAX_ANGLE 0.7853982f
 
 #define VISION_ENGAGE_STABLE_FRAMES 2U
-#define VISION_RAMP_STEP           0.40f
+#define VISION_RAMP_STEP           0.25f
 
 // Keep the validated PID-shaped hook as the mainline path. More advanced
 // estimators or controllers should be introduced behind explicit profiles
