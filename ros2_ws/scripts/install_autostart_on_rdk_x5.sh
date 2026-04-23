@@ -5,7 +5,7 @@ RDK_USER="${RDK_USER:-sunrise}"
 RDK_HOST="${RDK_HOST:?Please set RDK_HOST, e.g. export RDK_HOST=192.168.127.10}"
 RDK_PORT="${RDK_PORT:-22}"
 REMOTE_WS="${REMOTE_WS:-/home/sunrise/rm_ws}"
-REMOTE_SRC_DIR="${REMOTE_SRC_DIR:-${REMOTE_WS}/src/ros2_ws}"
+REMOTE_SRC_DIR="${REMOTE_SRC_DIR:-${REMOTE_WS}/src}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-${REMOTE_SRC_DIR}/scripts}"
 LOCAL_WS="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 

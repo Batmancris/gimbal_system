@@ -1,0 +1,19 @@
+rm_bear_detection:
+  ros__parameters:
+    image_topic: "/hbmem_img"
+    output_topic: "/bear_detection/targets"
+    target_type: "bear"
+    debug_topic: "/bear_detection/debug_text"
+    box_format: "cxcywh"
+    score_threshold: 0.71
+    nms_threshold: 0.70
+    nms_top_k: 300
+    stable_required_hits: 2
+    stable_match_radius_px: 140.0
+    stable_max_track_age_ms: 200
+    task_num: 4
+    log_fps: false
+    log_detections: false
+    publish_debug_text: false
+    debug_anchor_logs: false
+    sample_roi_logs: false

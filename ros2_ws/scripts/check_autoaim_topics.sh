@@ -2,7 +2,7 @@
 set -eo pipefail
 
 REMOTE_WS="${REMOTE_WS:-/home/sunrise/rm_ws}"
-DETECTOR_TOPIC="${DETECTOR_TOPIC:-/vehicle_detection/targets}"
+DETECTOR_TOPIC="${DETECTOR_TOPIC:-/bear_detection/targets}"
 
 cd "${REMOTE_WS}"
 source /opt/tros/humble/setup.bash

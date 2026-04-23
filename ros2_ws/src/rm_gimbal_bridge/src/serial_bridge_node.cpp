@@ -161,22 +161,24 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       "allowed_target_types", std::vector<std::string>{"vehicle"});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_selected_target_ = declare_parameter<bool>("log_selected_target", true);
-    log_diag_feedback_ = declare_parameter<bool>("log_diag_feedback", true);
+    log_diag_feedback_ = declare_parameter<bool>("log_diag_feedback", false);
     require_lower_vision_enabled_ =
       declare_parameter<bool>("require_lower_vision_enabled", true);
-    follow_smoothing_alpha_ = declare_parameter<double>("follow_smoothing_alpha", 0.18);
+    enable_fixed_rate_follow_ = declare_parameter<bool>("enable_fixed_rate_follow", true);
+    follow_send_rate_hz_ = declare_parameter<double>("follow_send_rate_hz", 50.0);
+    follow_smoothing_alpha_ = declare_parameter<double>("follow_smoothing_alpha", 0.35);
     follow_interp_rate_hz_ = declare_parameter<double>("follow_interp_rate_hz", 10.0);
     follow_control_mode_name_ =
       declare_parameter<std::string>("follow_control_mode", "light_predict");
-    follow_max_step_px_ = declare_parameter<double>("follow_max_step_px", 24.0);
+    follow_max_step_px_ = declare_parameter<double>("follow_max_step_px", 36.0);
     follow_deadband_px_ = declare_parameter<double>("follow_deadband_px", 12.0);
     measurement_jitter_deadband_px_ =
       declare_parameter<double>("measurement_jitter_deadband_px", 28.0);
-    fast_follow_error_px_ = declare_parameter<double>("fast_follow_error_px", 140.0);
+    fast_follow_error_px_ = declare_parameter<double>("fast_follow_error_px", 120.0);
     fast_follow_smoothing_alpha_ =
-      declare_parameter<double>("fast_follow_smoothing_alpha", 0.85);
-    fast_follow_max_step_px_ = declare_parameter<double>("fast_follow_max_step_px", 96.0);
-    light_follow_gain_ = declare_parameter<double>("light_follow_gain", 0.40);
+      declare_parameter<double>("fast_follow_smoothing_alpha", 0.55);
+    fast_follow_max_step_px_ = declare_parameter<double>("fast_follow_max_step_px", 72.0);
+    light_follow_gain_ = declare_parameter<double>("light_follow_gain", 0.45);
     center_gate_x_ratio_ = declare_parameter<double>("center_gate_x_ratio", 0.35);
     center_gate_y_ratio_ = declare_parameter<double>("center_gate_y_ratio", 0.30);
     pid_kp_ = declare_parameter<double>("pid_kp", 0.55);
@@ -184,15 +186,15 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     pid_kd_ = declare_parameter<double>("pid_kd", 0.08);
     pid_integral_limit_px_ = declare_parameter<double>("pid_integral_limit_px", 160.0);
     predict_alpha_ = declare_parameter<double>("predict_alpha", 0.65);
-    predict_beta_ = declare_parameter<double>("predict_beta", 0.18);
-    predict_horizon_sec_ = declare_parameter<double>("predict_horizon_sec", 0.08);
+    predict_beta_ = declare_parameter<double>("predict_beta", 0.0);
+    predict_horizon_sec_ = declare_parameter<double>("predict_horizon_sec", 0.0);
     target_switch_radius_px_ = declare_parameter<double>("target_switch_radius_px", 120.0);
     target_switch_min_conf_gain_ =
       declare_parameter<double>("target_switch_min_conf_gain", 0.10);
     target_switch_center_gain_px_ =
       declare_parameter<double>("target_switch_center_gain_px", 60.0);
-    min_send_delta_px_ = declare_parameter<double>("min_send_delta_px", 3.0);
-    send_keepalive_ms_ = declare_parameter<int>("send_keepalive_ms", 120);
+    min_send_delta_px_ = declare_parameter<double>("min_send_delta_px", 2.0);
+    send_keepalive_ms_ = declare_parameter<int>("send_keepalive_ms", 40);
     lower_diag_timeout_ms_ = declare_parameter<int>("lower_diag_timeout_ms", 500);
     lower_vision_latch_ms_ = declare_parameter<int>("lower_vision_latch_ms", 5000);
     target_hold_ms_ = declare_parameter<int>("target_hold_ms", 300);
@@ -210,6 +212,15 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     diag_timer_ = create_wall_timer(
       std::chrono::milliseconds(20),
       std::bind(&GimbalSerialBridgeNode::PollDiagnostics, this));
+    if (enable_fixed_rate_follow_) {
+      const double send_rate = std::clamp(follow_send_rate_hz_, 1.0, 200.0);
+      const auto send_period = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration<double>(1.0 / send_rate));
+      follow_send_timer_ = create_wall_timer(
+        std::max(std::chrono::milliseconds(1), send_period),
+        std::bind(&GimbalSerialBridgeNode::SendFollowFrameOnTimer, this));
+      RCLCPP_INFO(get_logger(), "fixed-rate follow enabled at %.1f Hz", send_rate);
+    }
   }
 
   ~GimbalSerialBridgeNode() override {
@@ -285,11 +296,13 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   }
 
   void OnTargets(const ai_msgs::msg::PerceptionTargets::SharedPtr msg) {
-    if (!msg || serial_fd_ < 0) {
+    if (!msg) {
       return;
     }
 
     const auto stamp = now();
+    // 先选出一个连续稳定的目标，再更新控制器状态。目标连续性断开时，
+    // SelectTarget 会返回空，下面会给下位机发送中心点刹车帧，而不是追另一个目标。
     auto selected = SelectTarget(*msg, stamp);
 
     if (selected.has_value()) {
@@ -298,31 +311,54 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     }
 
     if (!selected.has_value()) {
-      ResetTrackingState();
-      if (LowerVisionControlAllowed()) {
-        SendNeutralFrame();
-        last_sent_x_ = ClampToUInt16(image_center_x_);
-        last_sent_y_ = ClampToUInt16(image_center_y_);
-        last_send_stamp_ = stamp;
-        has_last_sent_frame_ = true;
+      if (has_active_target_ || filter_initialized_ || predictor_initialized_) {
+        ResetTrackingState();
       }
+      has_active_target_ = false;
+      SendNeutralFrameIfAllowed(stamp);
       return;
     }
 
-    const auto filtered = FilterTargetCenter(*selected, stamp);
-    const uint16_t x = ClampToUInt16(filtered.first);
-    const uint16_t y = ClampToUInt16(filtered.second);
+    has_active_target_ = true;
+    UpdatePredictorFromMeasurement(*selected, stamp);
+    if (enable_fixed_rate_follow_) {
+      return;
+    }
 
+    SendCurrentFollowFrame(stamp);
+  }
+
+  void SendFollowFrameOnTimer() {
+    SendCurrentFollowFrame(now());
+  }
+
+  bool SendCurrentFollowFrame(const rclcpp::Time &stamp) {
     if (!LowerVisionControlAllowed()) {
       RCLCPP_INFO_THROTTLE(
         get_logger(), *get_clock(), 1000,
-        "feedback-only: lower vision not enabled yet, skip send target=%s center=(%u,%u) conf=%.3f",
-        selected->type.c_str(), x, y, selected->confidence);
-      return;
+        "feedback-only: lower vision not enabled yet, skip follow send");
+      return false;
     }
 
+    if (!has_active_target_ || !last_target_.has_value() || last_target_stamp_.nanoseconds() <= 0) {
+      SendNeutralFrameIfAllowed(stamp);
+      return false;
+    }
+
+    const auto target_age = stamp - last_target_stamp_;
+    if (target_age > rclcpp::Duration::from_seconds(static_cast<double>(target_hold_ms_) / 1000.0)) {
+      has_active_target_ = false;
+      ResetTrackingState(true);
+      SendNeutralFrameIfAllowed(stamp);
+      return false;
+    }
+
+    const auto filtered = ComputeFollowCenter(stamp);
+    const uint16_t x = ClampToUInt16(filtered.first);
+    const uint16_t y = ClampToUInt16(filtered.second);
+
     if (!ShouldSendFrame(x, y, stamp)) {
-      return;
+      return false;
     }
 
     SendFrame(x, y);
@@ -334,63 +370,92 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     if (log_selected_target_) {
       RCLCPP_INFO_THROTTLE(
         get_logger(), *get_clock(), 500,
-        "target=%s center=(%u,%u) raw=(%.1f,%.1f) conf=%.3f dist=%.2f",
-        selected->type.c_str(), x, y, selected->center_x, selected->center_y,
-        selected->confidence, selected->distance_to_center);
+        "target=%s center=(%u,%u) raw=(%.1f,%.1f) vel=(%.1f,%.1f) conf=%.3f dist=%.2f",
+        last_target_->type.c_str(), x, y, last_target_->center_x, last_target_->center_y,
+        predictor_vx_, predictor_vy_, last_target_->confidence, last_target_->distance_to_center);
     }
+    return true;
   }
 
-  std::pair<double, double> FilterTargetCenter(
+  void UpdatePredictorFromMeasurement(
     const TargetCandidate &target,
     const rclcpp::Time &stamp) {
-    const double dx_center = target.center_x - image_center_x_;
-    const double dy_center = target.center_y - image_center_y_;
-    if (std::hypot(dx_center, dy_center) <= follow_deadband_px_) {
-      ResetControllerState();
-      predictor_x_ = target.center_x;
-      predictor_y_ = target.center_y;
-      predictor_stamp_ = stamp;
-      predictor_initialized_ = true;
-      filtered_center_x_ = image_center_x_;
-      filtered_center_y_ = image_center_y_;
-      filter_initialized_ = true;
-      return {filtered_center_x_, filtered_center_y_};
-    }
+    // 当前只保留轻量预测：低速已经验证顺滑，所以这里主要做 alpha 平滑，
+    // 速度预测保持保守，避免还没验证的高速预测破坏低速手感。
+    const double measurement_x =
+      std::clamp(target.center_x, 0.0, static_cast<double>(image_width_));
+    const double measurement_y =
+      std::clamp(target.center_y, 0.0, static_cast<double>(image_height_));
 
-    // Keep the ROS bridge low-latency: target selection happens here, but the
-    // gimbal-like continuous command shaping is done in the lower controller.
-    ResetControllerState();
-    predictor_x_ = target.center_x;
-    predictor_y_ = target.center_y;
-    predictor_vx_ = 0.0;
-    predictor_vy_ = 0.0;
-    predictor_stamp_ = stamp;
-    predictor_initialized_ = true;
-    filtered_center_x_ = std::clamp(target.center_x, 0.0, static_cast<double>(image_width_));
-    filtered_center_y_ = std::clamp(target.center_y, 0.0, static_cast<double>(image_height_));
-    filter_initialized_ = true;
-    last_control_stamp_ = stamp;
-    return {filtered_center_x_, filtered_center_y_};
-
-    if (!filter_initialized_) {
-      filtered_center_x_ = target.center_x;
-      filtered_center_y_ = target.center_y;
-      filter_initialized_ = true;
-      predictor_x_ = target.center_x;
-      predictor_y_ = target.center_y;
+    if (!predictor_initialized_) {
+      predictor_x_ = measurement_x;
+      predictor_y_ = measurement_y;
       predictor_vx_ = 0.0;
       predictor_vy_ = 0.0;
       predictor_stamp_ = stamp;
       predictor_initialized_ = true;
-      pid_prev_error_x_ = 0.0;
-      pid_prev_error_y_ = 0.0;
+      filtered_center_x_ = measurement_x;
+      filtered_center_y_ = measurement_y;
+      filter_initialized_ = true;
+      last_control_stamp_ = stamp;
+      return;
+    }
+
+    double dt = 0.0;
+    if (predictor_stamp_.nanoseconds() > 0) {
+      dt = (stamp - predictor_stamp_).seconds();
+    }
+    dt = std::clamp(dt, 0.005, 0.2);
+
+    const double predicted_x = predictor_x_ + predictor_vx_ * dt;
+    const double predicted_y = predictor_y_ + predictor_vy_ * dt;
+    const double residual_x = measurement_x - predicted_x;
+    const double residual_y = measurement_y - predicted_y;
+    const double alpha = std::clamp(predict_alpha_, 0.0, 1.0);
+    const double beta = std::clamp(predict_beta_, 0.0, 1.0);
+
+    predictor_x_ = predicted_x + alpha * residual_x;
+    predictor_y_ = predicted_y + alpha * residual_y;
+    predictor_vx_ += (beta * residual_x) / dt;
+    predictor_vy_ += (beta * residual_y) / dt;
+    predictor_stamp_ = stamp;
+  }
+
+  std::pair<double, double> ComputeFollowCenter(const rclcpp::Time &stamp) {
+    if (!predictor_initialized_) {
+      return {image_center_x_, image_center_y_};
+    }
+
+    // 把测量目标转换成发给 STM32 的目标点。逐帧限幅让低速更丝滑，
+    // 但高速横移时也可能带来滞后，后续高速调参主要看这里和下位机限幅。
+    double prediction_dt = 0.0;
+    if (predictor_stamp_.nanoseconds() > 0) {
+      prediction_dt = (stamp - predictor_stamp_).seconds();
+    }
+    prediction_dt = std::clamp(prediction_dt, 0.0, 0.25);
+
+    const double target_x = std::clamp(
+      predictor_x_ + predictor_vx_ * (prediction_dt + std::max(0.0, predict_horizon_sec_)),
+      0.0, static_cast<double>(image_width_));
+    const double target_y = std::clamp(
+      predictor_y_ + predictor_vy_ * (prediction_dt + std::max(0.0, predict_horizon_sec_)),
+      0.0, static_cast<double>(image_height_));
+    const double dx_center = target_x - image_center_x_;
+    const double dy_center = target_y - image_center_y_;
+    if (std::hypot(dx_center, dy_center) <= follow_deadband_px_) {
+      ResetControllerState();
+      filtered_center_x_ = image_center_x_;
+      filtered_center_y_ = image_center_y_;
+      filter_initialized_ = true;
       last_control_stamp_ = stamp;
       return {filtered_center_x_, filtered_center_y_};
     }
 
-    const double measurement_delta =
-      std::hypot(target.center_x - filtered_center_x_, target.center_y - filtered_center_y_);
-    if (measurement_delta <= measurement_jitter_deadband_px_) {
+    if (!filter_initialized_) {
+      filtered_center_x_ = target_x;
+      filtered_center_y_ = target_y;
+      filter_initialized_ = true;
+      last_control_stamp_ = stamp;
       return {filtered_center_x_, filtered_center_y_};
     }
 
@@ -398,18 +463,16 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     if (last_control_stamp_.nanoseconds() > 0) {
       dt = (stamp - last_control_stamp_).seconds();
     }
-    dt = std::clamp(dt, 0.01, 0.2);
+    dt = std::clamp(dt, 0.005, 0.1);
     last_control_stamp_ = stamp;
 
-    const auto predicted =
-      PredictTargetCenter(target.center_x, target.center_y, dt, stamp);
     const double interp_alpha = ComputeInterpolationAlpha(dt, follow_interp_rate_hz_);
     if (follow_control_mode_ == FollowControlMode::kPidPredict) {
       const double alpha = std::clamp(follow_smoothing_alpha_, 0.0, 1.0);
       const double interpolated_x =
-        filtered_center_x_ + (predicted.first - filtered_center_x_) * interp_alpha;
+        filtered_center_x_ + (target_x - filtered_center_x_) * interp_alpha;
       const double interpolated_y =
-        filtered_center_y_ + (predicted.second - filtered_center_y_) * interp_alpha;
+        filtered_center_y_ + (target_y - filtered_center_y_) * interp_alpha;
       const double desired_x =
         filtered_center_x_ + (interpolated_x - filtered_center_x_) * alpha;
       const double desired_y =
@@ -441,9 +504,9 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       const double max_step =
         fast_follow ? std::max(fast_follow_max_step_px_, follow_max_step_px_) : follow_max_step_px_;
       const double interpolated_x =
-        filtered_center_x_ + (predicted.first - filtered_center_x_) * interp_alpha;
+        filtered_center_x_ + (target_x - filtered_center_x_) * interp_alpha;
       const double interpolated_y =
-        filtered_center_y_ + (predicted.second - filtered_center_y_) * interp_alpha;
+        filtered_center_y_ + (target_y - filtered_center_y_) * interp_alpha;
       const double desired_x =
         filtered_center_x_ + (interpolated_x - filtered_center_x_) * gain;
       const double desired_y =
@@ -459,40 +522,6 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     filtered_center_x_ = std::clamp(filtered_center_x_, 0.0, static_cast<double>(image_width_));
     filtered_center_y_ = std::clamp(filtered_center_y_, 0.0, static_cast<double>(image_height_));
     return {filtered_center_x_, filtered_center_y_};
-  }
-
-  std::pair<double, double> PredictTargetCenter(
-    double measurement_x,
-    double measurement_y,
-    double dt,
-    const rclcpp::Time &stamp) {
-    if (!predictor_initialized_) {
-      predictor_x_ = measurement_x;
-      predictor_y_ = measurement_y;
-      predictor_vx_ = 0.0;
-      predictor_vy_ = 0.0;
-      predictor_stamp_ = stamp;
-      predictor_initialized_ = true;
-      return {predictor_x_, predictor_y_};
-    }
-
-    predictor_x_ += predictor_vx_ * dt;
-    predictor_y_ += predictor_vy_ * dt;
-
-    const double residual_x = measurement_x - predictor_x_;
-    const double residual_y = measurement_y - predictor_y_;
-    const double alpha = std::clamp(predict_alpha_, 0.0, 1.0);
-    const double beta = std::clamp(predict_beta_, 0.0, 1.0);
-    predictor_x_ += alpha * residual_x;
-    predictor_y_ += alpha * residual_y;
-    predictor_vx_ += (beta * residual_x) / dt;
-    predictor_vy_ += (beta * residual_y) / dt;
-    predictor_stamp_ = stamp;
-
-    return {
-      predictor_x_ + predictor_vx_ * predict_horizon_sec_,
-      predictor_y_ + predictor_vy_ * predict_horizon_sec_,
-    };
   }
 
   bool ShouldSendFrame(uint16_t x, uint16_t y, const rclcpp::Time &stamp) const {
@@ -522,6 +551,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   }
 
   void ResetTrackingState(bool keep_last_target = false) {
+    has_active_target_ = false;
     filter_initialized_ = false;
     predictor_initialized_ = false;
     filtered_center_x_ = image_center_x_;
@@ -543,6 +573,26 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     SendFrame(
       ClampToUInt16(image_center_x_),
       ClampToUInt16(image_center_y_));
+  }
+
+  void SendNeutralFrameIfAllowed(const rclcpp::Time &stamp) {
+    if (!LowerVisionControlAllowed()) {
+      return;
+    }
+
+    // 中心点不是随便发的空值，而是丢目标或目标跳变时的刹车命令，
+    // 防止下位机继续按旧坐标转动。
+    const uint16_t x = ClampToUInt16(image_center_x_);
+    const uint16_t y = ClampToUInt16(image_center_y_);
+    if (!ShouldSendFrame(x, y, stamp)) {
+      return;
+    }
+
+    SendFrame(x, y);
+    last_sent_x_ = x;
+    last_sent_y_ = y;
+    last_send_stamp_ = stamp;
+    has_last_sent_frame_ = true;
   }
 
   void PollDiagnostics() {
@@ -607,6 +657,8 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       last_diag_ = diag;
       last_diag_stamp_ = now();
 
+      // 下位机拥有最终视觉使能权。它还没回报 vision enabled 前，
+      // 桥接可以只收诊断不发控制，避免调试启动时云台误动。
       const bool vision_enabled = (diag.flags & kVisionDiagFlagVisionEnabled) != 0;
       if (vision_enabled != lower_vision_enabled_) {
         lower_vision_enabled_ = vision_enabled;
@@ -753,6 +805,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     }
 
     if (!sticky_target.has_value()) {
+      // 突然跳到远处的目标先拒绝，不直接切过去；随后中心点帧会让下位机安全刹车。
       return std::nullopt;
     }
     if (!fallback.has_value()) {
@@ -816,6 +869,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
 
   rclcpp::Subscription<ai_msgs::msg::PerceptionTargets>::SharedPtr subscription_;
   rclcpp::TimerBase::SharedPtr diag_timer_;
+  rclcpp::TimerBase::SharedPtr follow_send_timer_;
   std::vector<uint8_t> diag_rx_buffer_;
   std::optional<VisionDiagFrame> last_diag_;
   rclcpp::Time last_diag_stamp_{0, 0, RCL_ROS_TIME};
@@ -835,15 +889,15 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   double image_center_x_ = 640.0;
   double image_center_y_ = 512.0;
   double min_confidence_ = 0.5;
-  double follow_smoothing_alpha_ = 0.18;
+  double follow_smoothing_alpha_ = 0.35;
   double follow_interp_rate_hz_ = 10.0;
-  double follow_max_step_px_ = 24.0;
+  double follow_max_step_px_ = 36.0;
   double follow_deadband_px_ = 12.0;
   double measurement_jitter_deadband_px_ = 28.0;
-  double fast_follow_error_px_ = 140.0;
-  double fast_follow_smoothing_alpha_ = 0.85;
-  double fast_follow_max_step_px_ = 96.0;
-  double light_follow_gain_ = 0.40;
+  double fast_follow_error_px_ = 120.0;
+  double fast_follow_smoothing_alpha_ = 0.55;
+  double fast_follow_max_step_px_ = 72.0;
+  double light_follow_gain_ = 0.45;
   double center_gate_x_ratio_ = 0.35;
   double center_gate_y_ratio_ = 0.30;
   double pid_kp_ = 0.55;
@@ -851,19 +905,22 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
   double pid_kd_ = 0.08;
   double pid_integral_limit_px_ = 160.0;
   double predict_alpha_ = 0.65;
-  double predict_beta_ = 0.18;
-  double predict_horizon_sec_ = 0.08;
+  double predict_beta_ = 0.0;
+  double predict_horizon_sec_ = 0.0;
   double target_switch_radius_px_ = 120.0;
   double target_switch_min_conf_gain_ = 0.10;
   double target_switch_center_gain_px_ = 60.0;
-  double min_send_delta_px_ = 3.0;
-  int send_keepalive_ms_ = 120;
+  double min_send_delta_px_ = 2.0;
+  double follow_send_rate_hz_ = 50.0;
+  int send_keepalive_ms_ = 40;
   bool log_selected_target_ = true;
-  bool log_diag_feedback_ = true;
+  bool log_diag_feedback_ = false;
   bool require_lower_vision_enabled_ = true;
+  bool enable_fixed_rate_follow_ = true;
   FollowControlMode follow_control_mode_{FollowControlMode::kLightPredict};
   bool lower_vision_enabled_ = false;
   bool lower_vision_latched_ = false;
+  bool has_active_target_ = false;
   bool filter_initialized_ = false;
   bool predictor_initialized_ = false;
   double filtered_center_x_ = 640.0;

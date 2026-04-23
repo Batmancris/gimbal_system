@@ -6,14 +6,14 @@ REMOTE_SRC_DIR="${REMOTE_SRC_DIR:-${REMOTE_WS}/src}"
 REMOTE_SCRIPT_DIR="${REMOTE_SCRIPT_DIR:-${REMOTE_SRC_DIR}/scripts}"
 SERIAL_PORT="${SERIAL_PORT:-/dev/ttyS1}"
 ENEMY_PREFIX="${ENEMY_PREFIX:-}"
-PACKAGES="${PACKAGES:-hik_camera rm_armor_detection rm_vehicle_detection rm_gimbal_bridge}"
+PACKAGES="${PACKAGES:-hik_camera rm_armor_detection rm_vehicle_detection rm_bear_detection rm_gimbal_bridge}"
 
 cd "${REMOTE_WS}"
 source /opt/tros/humble/setup.bash
 
-pkill -f "rm_armor_detection rm_armor_detection" 2>/dev/null || true
-pkill -f rm_gimbal_bridge_node 2>/dev/null || true
-pkill -f hik_camera_node 2>/dev/null || true
+pkill -f "[r]m_armor_detection rm_armor_detection" 2>/dev/null || true
+pkill -f "[r]m_gimbal_bridge_node" 2>/dev/null || true
+pkill -f "[h]ik_camera_node" 2>/dev/null || true
 
 tmux kill-session -t rm_det 2>/dev/null || true
 tmux kill-session -t rm_bridge 2>/dev/null || true

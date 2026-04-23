@@ -9,4 +9,4 @@ tmux -L autoaim ls 2>/dev/null || true
 tmux -L bridge ls 2>/dev/null || true
 echo
 echo "processes:"
-ps -ef | grep -E 'hik_camera|rm_vehicle_detection|rm_gimbal_bridge|rm_armor_detection_visualizer|tmux' | grep -v grep || true
+ps -ef | grep -E 'hik_camera|rm_vehicle_detection|rm_bear_detection|rm_gimbal_bridge|rm_armor_detection_visualizer|tmux' | grep -v grep || true

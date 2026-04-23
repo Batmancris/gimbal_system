@@ -7,8 +7,8 @@ from typing import Any
 import numpy as np
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_PT = BASE_DIR / "runs" / "vehicle_yolov8x_4090" / "weights" / "best.pt"
-DEFAULT_ONNX = BASE_DIR / "runs" / "vehicle_yolov8x_4090" / "weights" / "best.onnx"
+DEFAULT_PT = Path(r"E:\research\1\yolo\hiki training\model_training\runs\bear_yolov8n_x5_640\weights\best.pt")
+DEFAULT_ONNX = Path(r"E:\research\1\yolo\hiki training\model_training\runs\bear_yolov8n_x5_640\weights\best.onnx")
 os.environ.setdefault("YOLO_CONFIG_DIR", str((BASE_DIR / ".ultralytics").resolve()))
 DEFAULT_HIK_PYTHON = Path(r"E:\Anaconda\envs\hik_yolov8\python.exe")
 DEFAULT_HIK_SITE_PACKAGES = DEFAULT_HIK_PYTHON.parent / "Lib" / "site-packages"

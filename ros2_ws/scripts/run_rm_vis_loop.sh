@@ -5,11 +5,15 @@ DISPLAY_VALUE="${DISPLAY_VALUE:-:0.0}"
 XAUTHORITY_VALUE="${XAUTHORITY_VALUE:-/home/sunrise/.Xauthority}"
 XDG_RUNTIME_DIR_VALUE="${XDG_RUNTIME_DIR_VALUE:-/run/user/1000}"
 VIS_DELAY_SEC="${VIS_DELAY_SEC:-3}"
-DETECTOR_TOPIC="${DETECTOR_TOPIC:-/vehicle_detection/targets}"
-VIS_MAX_FPS="${VIS_MAX_FPS:-0.0}"
+DETECTOR_TOPIC="${DETECTOR_TOPIC:-/bear_detection/targets}"
+VIS_MAX_FPS="${VIS_MAX_FPS:-24.0}"
 VIS_SCALE="${VIS_SCALE:-1.0}"
-VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/vehicle_detection/debug_text}"
-VIS_SHOW_DEBUG_TEXT="${VIS_SHOW_DEBUG_TEXT:-true}"
+VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/bear_detection/debug_text}"
+VIS_SHOW_DEBUG_TEXT="${VIS_SHOW_DEBUG_TEXT:-false}"
+VIS_FULLSCREEN="${VIS_FULLSCREEN:-false}"
+VIS_KEEP_ASPECT_RATIO="${VIS_KEEP_ASPECT_RATIO:-true}"
+VIS_WINDOW_WIDTH="${VIS_WINDOW_WIDTH:-1920}"
+VIS_WINDOW_HEIGHT="${VIS_WINDOW_HEIGHT:-1080}"
 cd "${REMOTE_WS}" || exit 1
 source /opt/tros/humble/setup.bash
 source "${REMOTE_WS}/install/setup.bash" || true
@@ -28,7 +32,11 @@ while true; do
     -p debug_topic:="${VIS_DEBUG_TOPIC}" \
     -p show_debug_text:="${VIS_SHOW_DEBUG_TEXT}" \
     -p display_max_fps:="${VIS_MAX_FPS}" \
-    -p display_scale:="${VIS_SCALE}"
+    -p display_scale:="${VIS_SCALE}" \
+    -p fullscreen:="${VIS_FULLSCREEN}" \
+    -p keep_aspect_ratio:="${VIS_KEEP_ASPECT_RATIO}" \
+    -p window_width:="${VIS_WINDOW_WIDTH}" \
+    -p window_height:="${VIS_WINDOW_HEIGHT}"
   rc=$?
   printf '[%s] rm_vis exited rc=%s, restarting in 2s
 ' "$(date +%F_%T)" "${rc}"

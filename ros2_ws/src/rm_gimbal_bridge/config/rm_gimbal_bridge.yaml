@@ -12,11 +12,17 @@ rm_gimbal_bridge:
     allowed_target_types: ["vehicle"]
     selection_mode: "closest"
     log_selected_target: true
+    log_diag_feedback: false
+    enable_fixed_rate_follow: true
+    follow_send_rate_hz: 50.0
     follow_control_mode: "light_predict"
     follow_interp_rate_hz: 8.0
-    follow_smoothing_alpha: 0.28
-    follow_max_step_px: 28.0
+    follow_smoothing_alpha: 0.35
+    follow_max_step_px: 36.0
     follow_deadband_px: 10.0
+    fast_follow_error_px: 120.0
+    fast_follow_smoothing_alpha: 0.55
+    fast_follow_max_step_px: 72.0
     light_follow_gain: 0.45
     center_gate_x_ratio: 0.55
     center_gate_y_ratio: 0.50
@@ -25,11 +31,11 @@ rm_gimbal_bridge:
     pid_kd: 0.08
     pid_integral_limit_px: 160.0
     predict_alpha: 0.30
-    predict_beta: 0.03
-    predict_horizon_sec: 0.01
+    predict_beta: 0.00
+    predict_horizon_sec: 0.00
     target_hold_ms: 500
     target_switch_radius_px: 96.0
     target_switch_min_conf_gain: 0.12
     target_switch_center_gain_px: 80.0
-    min_send_delta_px: 3.0
-    send_keepalive_ms: 120
+    min_send_delta_px: 2.0
+    send_keepalive_ms: 40

@@ -12,8 +12,9 @@ import onnxruntime as ort
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_PT_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8n_x5_640\weights\best.pt")
-DEFAULT_ONNX_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8n_x5_640\weights\best.onnx")
+DEFAULT_PT_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\bear_yolov8n_x5_640\weights\best.pt")
+DEFAULT_ONNX_MODEL = Path(r"E:\research\1\yolo\hiki training\model_training\runs\bear_yolov8n_x5_640\weights\best.onnx")
+DEFAULT_CLASS_NAME = "bear"
 DEFAULT_HIK_SITE_PACKAGES = Path(r"E:\Anaconda\envs\hik_yolov8\Lib\site-packages")
 DEFAULT_MVS_ROOT = Path(r"E:\MVS_Win_STD_4.6.3_260205\MVS\Development")
 WINDOW_NAME = "HIK Camera Detection"
@@ -566,6 +567,7 @@ def draw_detections(
     conf_thres: float,
     iou_thres: float,
     top1_score: float,
+    class_name: str,
     title: str,
     status_suffix: str,
 ) -> np.ndarray:
@@ -574,7 +576,7 @@ def draw_detections(
         cv2.rectangle(canvas, (x1, y1), (x2, y2), (80, 220, 120), 2)
         cv2.putText(
             canvas,
-            f"vehicle {score:.2f}",
+            f"{class_name} {score:.2f}",
             (x1, max(20, y1 - 10)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
@@ -655,6 +657,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--model", type=Path, default=None, help="single-backend model path")
     parser.add_argument("--pt-model", type=Path, default=DEFAULT_PT_MODEL)
     parser.add_argument("--onnx-model", type=Path, default=DEFAULT_ONNX_MODEL)
+    parser.add_argument("--class-name", type=str, default=DEFAULT_CLASS_NAME, help="label drawn on detection boxes")
     parser.add_argument(
         "--onnx-fallback-fixed",
         action="store_true",
@@ -691,11 +694,12 @@ def render_single(
     pad: tuple[float, float],
     conf_thres: float,
     iou_thres: float,
+    class_name: str,
     fps: float,
     status_suffix: str,
 ) -> tuple[np.ndarray, str]:
     detections, top1_score = decode_predictions(raw_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
-    canvas = draw_detections(frame, detections, fps, conf_thres, iou_thres, top1_score, title, status_suffix)
+    canvas = draw_detections(frame, detections, fps, conf_thres, iou_thres, top1_score, class_name, title, status_suffix)
     debug_info = extract_top_anchor_debug(raw_output, frame.shape[:2], ratio, pad)
     draw_raw_debug(canvas, debug_info, title, 126)
     status_text = f"{title.lower()} det={len(detections)} top1={top1_score:.3f} {status_suffix}"
@@ -710,20 +714,23 @@ def render_compare(
     pad: tuple[float, float],
     conf_thres: float,
     iou_thres: float,
+    class_name: str,
     fps: float,
     status_suffix: str,
 ) -> tuple[np.ndarray, str]:
     pt_detections, pt_top1 = decode_predictions(pt_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
     onnx_detections, onnx_top1 = decode_predictions(onnx_output, frame.shape[:2], ratio, pad, conf_thres, iou_thres)
-    left = draw_detections(frame, pt_detections, fps, conf_thres, iou_thres, pt_top1, "PT", status_suffix)
-    right = draw_detections(frame, onnx_detections, fps, conf_thres, iou_thres, onnx_top1, "ONNX", status_suffix)
+    left = draw_detections(frame, pt_detections, fps, conf_thres, iou_thres, pt_top1, class_name, "PT", status_suffix)
+    right = draw_detections(frame, onnx_detections, fps, conf_thres, iou_thres, onnx_top1, class_name, "ONNX", status_suffix)
     draw_raw_debug(left, extract_top_anchor_debug(pt_output, frame.shape[:2], ratio, pad), "PT", 126)
     draw_raw_debug(right, extract_top_anchor_debug(onnx_output, frame.shape[:2], ratio, pad), "ONNX", 126)
-    diff_mean = float(np.mean(np.abs(pt_output - onnx_output)))
+    abs_diff = np.abs(pt_output - onnx_output)
+    diff_mean = float(np.mean(abs_diff))
+    diff_max = float(np.max(abs_diff))
     canvas = np.hstack([left, right])
     cv2.putText(
         canvas,
-        f"pt_det={len(pt_detections)} onnx_det={len(onnx_detections)} abs_diff_mean={diff_mean:.6f}",
+        f"pt_det={len(pt_detections)} onnx_det={len(onnx_detections)} abs_diff_mean={diff_mean:.6f} abs_diff_max={diff_max:.6f}",
         (16, canvas.shape[0] - 18),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.65,
@@ -733,7 +740,8 @@ def render_compare(
     )
     status_text = (
         f"compare pt_det={len(pt_detections)} pt_top1={pt_top1:.3f} "
-        f"onnx_det={len(onnx_detections)} onnx_top1={onnx_top1:.3f} diff_mean={diff_mean:.6f} {status_suffix}"
+        f"onnx_det={len(onnx_detections)} onnx_top1={onnx_top1:.3f} "
+        f"diff_mean={diff_mean:.6f} diff_max={diff_max:.6f} {status_suffix}"
     )
     return canvas, status_text
 
@@ -802,11 +810,13 @@ def main() -> None:
 
             if backend == "pt":
                 assert pt_detector is not None
-                canvas, status_text = render_single("PT", frame, pt_detector.infer(tensor), ratio, pad, conf, iou, fps, status_suffix)
+                canvas, status_text = render_single(
+                    "PT", frame, pt_detector.infer(tensor), ratio, pad, conf, iou, args.class_name, fps, status_suffix
+                )
             elif backend == "onnx":
                 assert onnx_detector is not None
                 canvas, status_text = render_single(
-                    "ONNX", frame, onnx_detector.infer(tensor), ratio, pad, conf, iou, fps, status_suffix
+                    "ONNX", frame, onnx_detector.infer(tensor), ratio, pad, conf, iou, args.class_name, fps, status_suffix
                 )
             else:
                 assert pt_detector is not None and onnx_detector is not None
@@ -818,6 +828,7 @@ def main() -> None:
                     pad,
                     conf,
                     iou,
+                    args.class_name,
                     fps,
                     status_suffix,
                 )
