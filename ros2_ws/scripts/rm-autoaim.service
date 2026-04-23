@@ -21,8 +21,9 @@ Environment=DISPLAY_VALUE=:0
 Environment=XAUTHORITY_VALUE=/home/sunrise/.Xauthority
 Environment=XDG_RUNTIME_DIR_VALUE=/run/user/1000
 Environment=VIS_DELAY_SEC=3
-Environment=VIS_MAX_FPS=8.0
-Environment=VIS_SCALE=0.5
+Environment=VIS_MAX_FPS=12.0
+Environment=VIS_SCALE=0.75
+Environment=VIS_SHOW_DEBUG_TEXT=true
 Environment=VEHICLE_PUBLISH_DEBUG_TEXT=false
 Environment=VEHICLE_LOG_LEVEL=warn
 ExecStart=/bin/bash -lc 'exec "${REMOTE_SCRIPT_DIR}/start_autoaim_tmux.sh"'

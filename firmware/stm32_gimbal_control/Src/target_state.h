@@ -5,7 +5,7 @@
 #include "vision_input.h"
 
 #define TARGET_STATE_TIMEOUT_MS      100U
-#define TARGET_STATE_SMOOTH_ALPHA    0.30f
+#define TARGET_STATE_SMOOTH_ALPHA    1.00f
 
 typedef struct
 {

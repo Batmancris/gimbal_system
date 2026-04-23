@@ -9,6 +9,7 @@ DETECTOR_TOPIC="${DETECTOR_TOPIC:-/vehicle_detection/targets}"
 VIS_MAX_FPS="${VIS_MAX_FPS:-0.0}"
 VIS_SCALE="${VIS_SCALE:-1.0}"
 VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/vehicle_detection/debug_text}"
+VIS_SHOW_DEBUG_TEXT="${VIS_SHOW_DEBUG_TEXT:-true}"
 cd "${REMOTE_WS}" || exit 1
 source /opt/tros/humble/setup.bash
 source "${REMOTE_WS}/install/setup.bash" || true
@@ -25,6 +26,7 @@ while true; do
     -p image_topic:=/image_raw \
     -p targets_topic:="${DETECTOR_TOPIC}" \
     -p debug_topic:="${VIS_DEBUG_TOPIC}" \
+    -p show_debug_text:="${VIS_SHOW_DEBUG_TEXT}" \
     -p display_max_fps:="${VIS_MAX_FPS}" \
     -p display_scale:="${VIS_SCALE}"
   rc=$?

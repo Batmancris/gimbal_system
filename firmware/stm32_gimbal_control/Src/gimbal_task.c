@@ -278,7 +278,7 @@ static void gimbal_PID_clear(gimbal_PID_t *pid_clear);
   * @retval         pid 输出
   */
 static fp32 gimbal_PID_calc(gimbal_PID_t *pid, fp32 get, fp32 set, fp32 error_delta);
-static fp32 vision_limit_increment(fp32 add);
+static fp32 vision_limit_increment_by(fp32 add, fp32 max_step);
 
 /**
   * @brief          gimbal calibration calculate
@@ -929,6 +929,8 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
     static fp32 smoothed_error_x = 0.0f;
     static fp32 smoothed_error_y = 0.0f;
     static fp32 accumulated_pitch_add = 0.0f;
+    static fp32 shaped_yaw_add = 0.0f;
+    static fp32 shaped_pitch_add = 0.0f;
     uint8_t has_new_frame = 0U;
     fp32 error_x = 0.0f;
     fp32 error_y = 0.0f;
@@ -968,6 +970,8 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         smoothed_error_x = 0.0f;
         smoothed_error_y = 0.0f;
         accumulated_pitch_add = 0.0f;
+        shaped_yaw_add = 0.0f;
+        shaped_pitch_add = 0.0f;
         vision_pid_reset(&g_vision_yaw_pid);
         vision_pid_reset(&g_vision_pitch_pid);
         return;
@@ -986,6 +990,8 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         smoothed_error_x = 0.0f;
         smoothed_error_y = 0.0f;
         accumulated_pitch_add = 0.0f;
+        shaped_yaw_add = 0.0f;
+        shaped_pitch_add = 0.0f;
         vision_pid_reset(&g_vision_yaw_pid);
         vision_pid_reset(&g_vision_pitch_pid);
     }
@@ -1040,28 +1046,112 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
     g_gimbal_vision_diag.error_x = (int16_t)error_x;
     g_gimbal_vision_diag.error_y = (int16_t)error_y;
 
-    if (!has_new_frame)
+    if (error_x == 0.0f && error_y == 0.0f)
     {
+        shaped_yaw_add = 0.0f;
+        shaped_pitch_add = 0.0f;
+        vision_pid_reset(&g_vision_yaw_pid);
+        vision_pid_reset(&g_vision_pitch_pid);
         return;
     }
 
-    if (engage_ratio < 0.20f)
+    if (engage_ratio < 1.0f)
     {
-        engage_ratio = 0.20f;
-    }
-    else if (engage_ratio < 1.0f)
-    {
-        engage_ratio += VISION_RAMP_STEP;
+        engage_ratio += (VISION_RAMP_STEP * 0.20f);
         if (engage_ratio > 1.0f)
         {
             engage_ratio = 1.0f;
         }
     }
 
-    applied_yaw = -vision_limit_increment(
-      vision_controller_calc(&g_vision_yaw_pid, error_x, &g_vision_controller_profile) * engage_ratio);
-    applied_pitch = -vision_limit_increment(
-      vision_controller_calc(&g_vision_pitch_pid, error_y, &g_vision_controller_profile) * engage_ratio);
+    {
+        fp32 error_abs = fabsf(error_x);
+        fp32 max_step = VISION_MAX_ANGLE_STEP;
+        fp32 cmd_alpha = VISION_CMD_SMOOTH_ALPHA;
+        fp32 yaw_step_scale;
+        fp32 pitch_step_scale;
+        fp32 yaw_max_step;
+        fp32 pitch_max_step;
+        fp32 yaw_scale_ratio;
+        fp32 pitch_scale_ratio;
+        fp32 yaw_cmd_alpha;
+        fp32 pitch_cmd_alpha;
+        fp32 target_yaw_add;
+        fp32 target_pitch_add;
+
+        if (fabsf(error_y) > error_abs)
+        {
+            error_abs = fabsf(error_y);
+        }
+
+        if (error_abs > VISION_FAST_ERROR_THRESHOLD)
+        {
+            max_step = VISION_FAST_ANGLE_STEP;
+            cmd_alpha = VISION_CMD_FAST_ALPHA;
+        }
+
+        yaw_scale_ratio = fabsf(error_x) / VISION_SLOWDOWN_ERROR_PX;
+        pitch_scale_ratio = fabsf(error_y) / VISION_SLOWDOWN_ERROR_PX;
+        if (yaw_scale_ratio > 1.0f)
+        {
+            yaw_scale_ratio = 1.0f;
+        }
+
+        if (pitch_scale_ratio > 1.0f)
+        {
+            pitch_scale_ratio = 1.0f;
+        }
+
+        yaw_step_scale =
+          VISION_MIN_STEP_SCALE + (1.0f - VISION_MIN_STEP_SCALE) * yaw_scale_ratio * yaw_scale_ratio;
+        pitch_step_scale =
+          VISION_MIN_STEP_SCALE + (1.0f - VISION_MIN_STEP_SCALE) * pitch_scale_ratio * pitch_scale_ratio;
+
+        yaw_max_step = max_step * yaw_step_scale;
+        pitch_max_step = max_step * pitch_step_scale;
+
+        if (has_new_frame)
+        {
+            target_yaw_add = -vision_limit_increment_by(
+              vision_controller_calc(&g_vision_yaw_pid, error_x, &g_vision_controller_profile) * engage_ratio,
+              yaw_max_step);
+            target_pitch_add = -vision_limit_increment_by(
+              vision_controller_calc(&g_vision_pitch_pid, error_y, &g_vision_controller_profile) * engage_ratio,
+              pitch_max_step);
+
+            yaw_cmd_alpha = cmd_alpha;
+            pitch_cmd_alpha = cmd_alpha;
+
+            if ((target_yaw_add * shaped_yaw_add) < 0.0f ||
+                fabsf(target_yaw_add) < fabsf(shaped_yaw_add))
+            {
+                yaw_cmd_alpha = VISION_CMD_BRAKE_ALPHA;
+            }
+
+            if ((target_pitch_add * shaped_pitch_add) < 0.0f ||
+                fabsf(target_pitch_add) < fabsf(shaped_pitch_add))
+            {
+                pitch_cmd_alpha = VISION_CMD_BRAKE_ALPHA;
+            }
+
+            shaped_yaw_add += (target_yaw_add - shaped_yaw_add) * yaw_cmd_alpha;
+            shaped_pitch_add += (target_pitch_add - shaped_pitch_add) * pitch_cmd_alpha;
+        }
+        else
+        {
+            fp32 hold_decay = VISION_FRAME_HOLD_DECAY;
+            if (error_abs < VISION_SLOWDOWN_ERROR_PX)
+            {
+                hold_decay = VISION_FRAME_BRAKE_DECAY;
+            }
+
+            shaped_yaw_add *= hold_decay;
+            shaped_pitch_add *= hold_decay;
+        }
+
+        applied_yaw = vision_limit_increment_by(shaped_yaw_add, yaw_max_step);
+        applied_pitch = vision_limit_increment_by(shaped_pitch_add, pitch_max_step);
+    }
     {
         fp32 next_pitch_add = accumulated_pitch_add + applied_pitch;
         if (next_pitch_add > GIMBAL_PITCH_FOLLOW_MAX_ANGLE)
@@ -1201,16 +1291,21 @@ static fp32 vision_controller_calc(vision_pid_t *pid, fp32 err, const vision_con
     }
 }
 
-static fp32 vision_limit_increment(fp32 add)
+static fp32 vision_limit_increment_by(fp32 add, fp32 max_step)
 {
-    if (add > VISION_MAX_ANGLE_STEP)
+    if (max_step <= 0.0f)
     {
-        return VISION_MAX_ANGLE_STEP;
+        return 0.0f;
     }
 
-    if (add < -VISION_MAX_ANGLE_STEP)
+    if (add > max_step)
     {
-        return -VISION_MAX_ANGLE_STEP;
+        return max_step;
+    }
+
+    if (add < -max_step)
+    {
+        return -max_step;
     }
 
     return add;

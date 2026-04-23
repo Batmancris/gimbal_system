@@ -17,6 +17,7 @@ rsync -avz \
   "${LOCAL_WS}/scripts/clean_build_and_start_on_rdk.sh" \
   "${LOCAL_WS}/scripts/start_autoaim_tmux.sh" \
   "${LOCAL_WS}/scripts/start_rm_bridge_tmux.sh" \
+  "${LOCAL_WS}/scripts/start_rm_vis_tmux.sh" \
   "${LOCAL_WS}/scripts/check_autoaim_topics.sh" \
   "${LOCAL_WS}/scripts/run_hik_cam_loop.sh" \
   "${LOCAL_WS}/scripts/run_rm_bridge_loop.sh" \
@@ -30,6 +31,7 @@ ssh -p "${RDK_PORT}" "${RDK_USER}@${RDK_HOST}" "\
   chmod +x '${REMOTE_SCRIPT_DIR}/clean_build_and_start_on_rdk.sh' \
            '${REMOTE_SCRIPT_DIR}/start_autoaim_tmux.sh' \
            '${REMOTE_SCRIPT_DIR}/start_rm_bridge_tmux.sh' \
+           '${REMOTE_SCRIPT_DIR}/start_rm_vis_tmux.sh' \
            '${REMOTE_SCRIPT_DIR}/check_autoaim_topics.sh' \
            '${REMOTE_SCRIPT_DIR}/run_hik_cam_loop.sh' \
            '${REMOTE_SCRIPT_DIR}/run_rm_bridge_loop.sh' \

@@ -120,26 +120,34 @@
 #define VISION_IMAGE_HEIGHT       1024.0f
 #define VISION_CENTER_X           (VISION_IMAGE_WIDTH * 0.5f)
 #define VISION_CENTER_Y           (VISION_IMAGE_HEIGHT * 0.5f)
-#define VISION_X_DEADBAND         4.0f
-#define VISION_Y_DEADBAND         4.0f
+#define VISION_X_DEADBAND         14.0f
+#define VISION_Y_DEADBAND         14.0f
 #define VISION_YAW_PIXEL_TO_RAD   0.000014f
 #define VISION_PITCH_PIXEL_TO_RAD 0.000014f
-#define VISION_YAW_PID_KP         0.000260f
+#define VISION_YAW_PID_KP         0.0000072f
 #define VISION_YAW_PID_KI         0.0f
-#define VISION_YAW_PID_KD         0.0f
-#define VISION_PITCH_PID_KP       0.000210f
+#define VISION_YAW_PID_KD         0.000055f
+#define VISION_PITCH_PID_KP       0.0000060f
 #define VISION_PITCH_PID_KI       0.0f
-#define VISION_PITCH_PID_KD       0.0f
+#define VISION_PITCH_PID_KD       0.000042f
 #define VISION_PID_MAX_IOUT       0.0f
-#define VISION_PID_MAX_OUT        VISION_MAX_ANGLE_STEP
-#define VISION_MAX_ANGLE_STEP     0.0200f
-#define VISION_ERROR_SMOOTH_ALPHA 0.26f
-#define VISION_ERROR_FAST_ALPHA   0.45f
-#define VISION_FAST_ERROR_THRESHOLD 72.0f
+#define VISION_PID_MAX_OUT        VISION_FAST_ANGLE_STEP
+#define VISION_MAX_ANGLE_STEP     0.0045f
+#define VISION_FAST_ANGLE_STEP    0.0065f
+#define VISION_ERROR_SMOOTH_ALPHA 1.00f
+#define VISION_ERROR_FAST_ALPHA   1.00f
+#define VISION_FAST_ERROR_THRESHOLD 160.0f
+#define VISION_CMD_SMOOTH_ALPHA   0.42f
+#define VISION_CMD_FAST_ALPHA     0.58f
+#define VISION_CMD_BRAKE_ALPHA    0.92f
+#define VISION_SLOWDOWN_ERROR_PX  220.0f
+#define VISION_MIN_STEP_SCALE     0.10f
+#define VISION_FRAME_HOLD_DECAY   0.990f
+#define VISION_FRAME_BRAKE_DECAY  0.970f
 #define GIMBAL_PITCH_FOLLOW_MAX_ANGLE 0.7853982f
 
-#define VISION_ENGAGE_STABLE_FRAMES 2U
-#define VISION_RAMP_STEP           0.25f
+#define VISION_ENGAGE_STABLE_FRAMES 1U
+#define VISION_RAMP_STEP           1.00f
 
 // Keep the validated PID-shaped hook as the mainline path. More advanced
 // estimators or controllers should be introduced behind explicit profiles

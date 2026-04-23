@@ -14,17 +14,22 @@ rm_gimbal_bridge:
     log_selected_target: true
     follow_control_mode: "light_predict"
     follow_interp_rate_hz: 8.0
-    follow_smoothing_alpha: 0.40
-    follow_max_step_px: 48.0
-    follow_deadband_px: 8.0
-    light_follow_gain: 0.72
+    follow_smoothing_alpha: 0.28
+    follow_max_step_px: 28.0
+    follow_deadband_px: 10.0
+    light_follow_gain: 0.45
     center_gate_x_ratio: 0.55
     center_gate_y_ratio: 0.50
     pid_kp: 0.55
     pid_ki: 0.0
     pid_kd: 0.08
     pid_integral_limit_px: 160.0
-    predict_alpha: 0.45
-    predict_beta: 0.08
-    predict_horizon_sec: 0.02
-    target_hold_ms: 450
+    predict_alpha: 0.30
+    predict_beta: 0.03
+    predict_horizon_sec: 0.01
+    target_hold_ms: 500
+    target_switch_radius_px: 96.0
+    target_switch_min_conf_gain: 0.12
+    target_switch_center_gain_px: 80.0
+    min_send_delta_px: 3.0
+    send_keepalive_ms: 120
