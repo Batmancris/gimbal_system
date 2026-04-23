@@ -47,6 +47,8 @@ void VisionInput_HandleIdleInterrupt(void)
 {
     uint16_t received_len;
 
+    // IDLE 表示这一段接收暂时结束：先把 DMA 缓冲区喂给解析器，
+    // 然后立刻重启 DMA，保证 USB/UART 后续数据还能继续进来。
     HAL_UART_DMAStop(&huart1);
     received_len = (uint16_t)(VISION_DMA_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(huart1.hdmarx));
 
@@ -205,6 +207,8 @@ static void parse_ring_frames(void)
             ring_peek(8U, &tail0) && ring_peek(9U, &tail1) &&
             tail0 == VISION_FRAME_TAIL_0 && tail1 == VISION_FRAME_TAIL_1)
         {
+            // 增强帧带 seq/checksum，方便调参时检查丢帧和错帧；
+            // 旧的 8 字节帧仍保留，兼容早期工具。
             for (i = 0U; i < VISION_ENHANCED_FRAME_SIZE; i++)
             {
                 ring_peek(i, &frame[i]);
@@ -261,6 +265,7 @@ static void parse_ring_frames(void)
 static void store_frame(uint16_t x, uint16_t y, uint8_t seq, uint8_t checksum, uint8_t enhanced)
 {
     __disable_irq();
+    // 只保存最新目标，不排队回放旧坐标；高速运动时旧坐标堆积会直接造成滞后。
     vision_input_ctx.latest_frame.x = x;
     vision_input_ctx.latest_frame.y = y;
     vision_input_ctx.latest_frame.seq = seq;

@@ -18,6 +18,8 @@ void TargetState_Update(void)
 {
     vision_input_frame_t frame;
 
+    // 一次性取完当前收到的帧，只保留最新目标；这里更看重低延迟，
+    // 不回放旧目标位置。
     while (VisionInput_FetchFrame(&frame))
     {
         target_state.raw_x = frame.x;
@@ -44,6 +46,8 @@ void TargetState_Update(void)
     if (target_state.valid &&
         (HAL_GetTick() - target_state.last_update_tick) > TARGET_STATE_TIMEOUT_MS)
     {
+        // 超时后目标置为无效，让 gimbal_task 重置视觉控制，
+        // 避免继续跟随过期坐标。
         target_state.valid = 0U;
         target_state.fresh = 0U;
     }

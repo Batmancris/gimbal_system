@@ -1,111 +1,111 @@
 # rm_gimbal_bridge
 
-`rm_gimbal_bridge` converts detector output topics into the serial target stream consumed by the STM32 gimbal controller.
+`rm_gimbal_bridge` 把检测节点发布的 `ai_msgs/msg/PerceptionTargets` 转成 STM32 能接收的视觉目标坐标帧。
 
-## Runtime role
+## 当前角色
 
-- subscribes to `ai_msgs/msg/PerceptionTargets`
-- selects one target
-- sends the target center through the configured serial device
-- provides the integrated autoaim launch entry
-- keeps USB CDC diagnostic utilities in the same package
+在当前主线中，桥接节点位于：
 
-Serial frame format:
+```text
+rm_bear_detection -> /bear_detection/targets -> rm_gimbal_bridge -> USB-CDC -> STM32
+```
+
+低速跟随已经顺滑；高速目标移动时仍会出现跟不上，桥接侧后续重点是继续验证预测、发送限幅和目标稳定策略。
+
+## 串口帧格式
+
+当前发送给 STM32 的坐标帧：
 
 ```text
 0xFA 0xFB X_L X_H Y_L Y_H 0xFC 0xFD
 ```
 
-## Default behavior
+其中 `X/Y` 是图像坐标里的目标中心点。没有有效目标或目标超时后，桥接会发送图像中心点作为 neutral frame，避免下位机继续沿旧速度盲转。
 
-- default detector input topic: `/dnn_node_sample`
-- default serial port in node config: `/dev/ttyS1`
-- board-side scripts usually override the serial port to the USB-CDC by-id device
-- default baud rate: `921600`
-- default selection mode: `closest`
+## 主要功能
 
-## Main parameters
+- 订阅检测结果话题。
+- 按类型、置信度和中心区域筛选候选目标。
+- 用 sticky target 逻辑避免多个目标之间来回跳。
+- 以固定频率发送平滑后的目标点。
+- 读取 STM32 诊断帧，确认下位机视觉开关、目标有效状态和调参数据。
+- 串口写失败时自动尝试 reopen。
 
-- `input_topic`
-- `serial_port`
-- `baud_rate`
-- `image_width`
-- `image_height`
-- `image_center_x`
-- `image_center_y`
-- `min_confidence`
-- `enemy_prefix`
-- `allowed_target_types`
-- `selection_mode`
-- `require_lower_vision_enabled`
+## 当前默认参数
 
-## Detector integration
-
-Armor mode:
-
-```text
-/hbmem_img -> rm_armor_detection -> /dnn_node_sample -> rm_gimbal_bridge
-```
-
-Vehicle mode can be wired in two ways:
-
-```text
-/hbmem_img -> rm_vehicle_detection -> /vehicle_detection/targets -> rm_gimbal_bridge
-```
-
-or, for a fully shared downstream contract:
-
-```text
-/hbmem_img -> rm_vehicle_detection -> /dnn_node_sample -> rm_gimbal_bridge
-```
-
-`rm_autoaim_system.launch.py` already supports detector switching with:
-
-- `detector_type:=armor`
-- `detector_type:=vehicle`
-- `detector_topic:=...`
-- `vehicle_model_path:=...`
-
-## Run
-
-Bridge only:
+板端脚本 `ros2_ws/scripts/run_rm_bridge_loop.sh` 的当前默认值：
 
 ```bash
-ros2 launch rm_gimbal_bridge rm_gimbal_bridge.launch.py
+DETECTOR_TOPIC=/bear_detection/targets
+ALLOWED_TARGET_TYPES=bear
+BRIDGE_MIN_CONFIDENCE=0.71
+ENABLE_FIXED_RATE_FOLLOW=true
+FOLLOW_SEND_RATE_HZ=50.0
+FOLLOW_CONTROL_MODE=light_predict
+FOLLOW_SMOOTHING_ALPHA=0.35
+FOLLOW_MAX_STEP_PX=36.0
+FOLLOW_DEADBAND_PX=5.0
+FAST_FOLLOW_ERROR_PX=120.0
+FAST_FOLLOW_SMOOTHING_ALPHA=0.55
+FAST_FOLLOW_MAX_STEP_PX=72.0
+LIGHT_FOLLOW_GAIN=0.45
+TARGET_HOLD_MS=350
+TARGET_SWITCH_RADIUS_PX=120.0
+TARGET_SWITCH_MIN_CONF_GAIN=0.30
+CENTER_GATE_X_RATIO=1.00
+CENTER_GATE_Y_RATIO=1.00
 ```
 
-Whole system, armor mode:
+注意：源码里的 `declare_parameter` 是兜底默认值，实际板端运行时通常由脚本覆盖。
+
+## 运行
+
+直接运行 bear 主线：
 
 ```bash
-ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py
+ros2 run rm_gimbal_bridge rm_gimbal_bridge_node --ros-args \
+  -p input_topic:=/bear_detection/targets \
+  -p allowed_target_types:="['bear']" \
+  -p min_confidence:=0.71 \
+  -p serial_port:=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
 ```
 
-Whole system, vehicle mode:
+通过 tmux 脚本运行：
 
 ```bash
-ros2 launch rm_gimbal_bridge rm_autoaim_system.launch.py \
-  detector_type:=vehicle \
-  detector_topic:=/dnn_node_sample
+export DETECTOR_TOPIC=/bear_detection/targets
+export ALLOWED_TARGET_TYPES=bear
+bash src/scripts/start_rm_bridge_tmux.sh
 ```
 
-## 2026-04-23 Vision PID Tuning Record
+查看桥接日志：
 
-This repository state records the completed RDK X5 to STM32 C-board visual closed-loop tuning pass. The model files were not changed in this pass; the work focused on bridge latency, target safety, and lower-board vision PID behavior.
+```bash
+tmux -L bridge capture-pane -pt rm_bridge
+```
 
-Final lower-board firmware parameters are in `firmware/stm32_gimbal_control/Src/gimbal_task.h`:
+## 高速跟随调试说明
 
-- `VISION_X_DEADBAND = 14.0f`, `VISION_Y_DEADBAND = 14.0f`
-- `VISION_YAW_PID_KP = 0.0000072f`, `VISION_YAW_PID_KI = 0.0f`, `VISION_YAW_PID_KD = 0.000055f`
-- `VISION_PITCH_PID_KP = 0.0000060f`, `VISION_PITCH_PID_KI = 0.0f`, `VISION_PITCH_PID_KD = 0.000042f`
-- `VISION_MAX_ANGLE_STEP = 0.0045f`, `VISION_FAST_ANGLE_STEP = 0.0065f`, `VISION_FAST_ERROR_THRESHOLD = 160.0f`
-- `VISION_CMD_SMOOTH_ALPHA = 0.42f`, `VISION_CMD_FAST_ALPHA = 0.58f`, `VISION_CMD_BRAKE_ALPHA = 0.92f`
-- `VISION_SLOWDOWN_ERROR_PX = 220.0f`, `VISION_MIN_STEP_SCALE = 0.10f`
-- `VISION_FRAME_HOLD_DECAY = 0.990f`, `VISION_FRAME_BRAKE_DECAY = 0.970f`
-- `TARGET_STATE_SMOOTH_ALPHA = 1.00f` in `firmware/stm32_gimbal_control/Src/target_state.h`
+当前不要把高速问题归因到单一参数。建议按顺序看：
 
-Final behavior summary:
+1. `/bear_detection/targets` 是否在高速下仍稳定输出目标。
+2. 桥接日志里的目标中心点是否明显滞后。
+3. STM32 诊断里的 `err=(x,y)`、`add=(yaw,pitch)mrad` 是否到达限幅。
+4. 云台实际响应是否被机械惯量或电机限流限制。
 
-- The ROS bridge sends low-latency target centers and rejects unsafe target jumps instead of falling back to a different detection on the opposite side of the image.
-- When target detection is lost or tracking continuity breaks, the bridge sends a neutral center frame so the lower board clears residual velocity instead of continuing to rotate blindly.
-- The lower board uses frame-triggered vision PD updates with frame-to-frame command decay, braking alpha, and quadratic slowdown near image center. This keeps the fast-follow speed while reducing hard acceleration, overshoot, and stale-command drift.
-- The current tested camera/detector path remains `hik_camera -> rm_vehicle_detection -> rm_gimbal_bridge -> STM32 USB-CDC` at roughly 30 FPS without visualization.
+可临时打开：
+
+```bash
+export BRIDGE_LOG_DIAG_FEEDBACK=true
+export BEAR_LOG_DETECTIONS=true
+```
+
+如果只调整桥接侧，优先小步尝试：
+
+```bash
+export FAST_FOLLOW_MAX_STEP_PX=84.0
+export LIGHT_FOLLOW_GAIN=0.50
+```
+
+每次只改一组参数，确认低速丝滑没有被破坏后再继续。
+

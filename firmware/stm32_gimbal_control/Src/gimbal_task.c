@@ -963,6 +963,8 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
 
     if (!vision_enabled || target_state == NULL || target_state->valid == 0U)
     {
+        // 视觉关闭或目标失效时必须清掉整形后的命令和 PID 历史，
+        // 否则旧误差会让云台继续转。
         last_vision_enabled = vision_enabled;
         last_target_valid = 0U;
         stable_frames = 0U;
@@ -1012,6 +1014,7 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
     error_x = target_state->filtered_x - VISION_CENTER_X;
     error_y = target_state->filtered_y - VISION_CENTER_Y;
 
+    // 当前稳定配置让像素误差尽量贴近测量值；预测逻辑只应该作为明确的高速实验加入。
     if (smoothed_error_x == 0.0f && smoothed_error_y == 0.0f)
     {
         smoothed_error_x = error_x;
@@ -1107,11 +1110,15 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
         pitch_step_scale =
           VISION_MIN_STEP_SCALE + (1.0f - VISION_MIN_STEP_SCALE) * pitch_scale_ratio * pitch_scale_ratio;
 
+        // 靠近图像中心时做二次减速，这是低速丝滑的重要原因；
+        // 但目标高速穿过中心时也会降低控制力度。
         yaw_max_step = max_step * yaw_step_scale;
         pitch_max_step = max_step * pitch_step_scale;
 
         if (has_new_frame)
         {
+            // 只有新视觉帧才刷新整形命令；两帧之间只做衰减，
+            // 不用旧数据继续加速。
             target_yaw_add = -vision_limit_increment_by(
               vision_controller_calc(&g_vision_yaw_pid, error_x, &g_vision_controller_profile) * engage_ratio,
               yaw_max_step);
@@ -1125,6 +1132,7 @@ static void gimbal_apply_vision_control(fp32 *add_yaw_angle,
             if ((target_yaw_add * shaped_yaw_add) < 0.0f ||
                 fabsf(target_yaw_add) < fabsf(shaped_yaw_add))
             {
+                // 命令反向或幅值变小时使用更强的刹车系数，减少越过目标后的拖尾。
                 yaw_cmd_alpha = VISION_CMD_BRAKE_ALPHA;
             }
 
