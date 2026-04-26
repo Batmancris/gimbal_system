@@ -1,77 +1,74 @@
 # Architecture
 
-Updated: 2026-04-11
+Updated: 2026-04-26
 
-## Active Layout
+This document records the current main repository architecture after the training, quantization, and capture tools were split out.
+
+## Repository Scope
 
 ```text
-ros2_ws/                         # 上位机: ROS2 / TROS / RDK-X5
-firmware/stm32_gimbal_control/   # 下位机: STM32 gimbal firmware
-datasets/                        # dataset structure and manifests
-models/                          # model metadata and exports
-tools/                           # capture, labeling, training, evaluation helpers
-scripts/                         # top-level wrapper commands
+gimbal_system/
+├── README.md
+├── AGENTS.md
+├── ros2_ws/
+├── firmware/
+├── scripts/
+├── models/
+├── datasets/
+├── docs/
+├── assets/
+└── archive/
 ```
 
-Historical code snapshots are no longer retained in the working tree. Use Git
-history or the remote historical `main` branch when old code needs to be
-inspected.
+训练/量化/采集工具已拆分为独立工具仓，本仓库仅保留云台主系统代码。
 
 ## Runtime Chain
+
+```text
+hik_camera
+  -> /hbmem_img
+  -> detection
+  -> rm_gimbal_bridge
+  -> STM32 USB-CDC
+  -> vision_input
+  -> target_state
+  -> gimbal_task
+  -> CAN
+  -> GM6020 gimbal
+```
+
+Remote-control input remains on the lower-level firmware side:
 
 ```text
 remote control
   -> DBUS / USART3 DMA
   -> remote_control
   -> gimbal mode / manual control
-
-hik_camera
-  -> image_raw / hbmem_img
-  -> rm_armor_detection
-  -> /dnn_node_sample
-  -> rm_gimbal_bridge
-  -> USB-CDC serial device
-  -> vision_input
-  -> target_state
-  -> gimbal_task
 ```
-
-The current lower-level remote-control path is DBUS-like RC input parsed on
-`USART3 + DMA + IDLE`. The current upper-to-lower vision path uses USB-CDC in
-the active scripts and firmware hooks, while the shared `vision_input` parser
-keeps the validated `0xFA 0xFB ... 0xFC 0xFD` framing compatible.
 
 ## Upper-Level Runtime
 
-```text
-ros2_ws/src/hik_camera/
-ros2_ws/src/rm_armor_detection/
-ros2_ws/src/rm_gimbal_bridge/
-ros2_ws/src/rm_interfaces/
-ros2_ws/src/rm_utils/
-ros2_ws/scripts/
-```
+Current ROS2/TROS runtime code lives under `ros2_ws/`.
 
-Primary bridge source:
+Key packages:
+
+- `ros2_ws/src/hik_camera/`
+- `ros2_ws/src/rm_bear_detection/`
+- `ros2_ws/src/rm_vehicle_detection/`
+- `ros2_ws/src/rm_armor_detection/`
+- `ros2_ws/src/rm_gimbal_bridge/`
+- `ros2_ws/src/rm_interfaces/`
+- `ros2_ws/src/rm_utils/`
+
+Primary bridge implementation:
 
 - `ros2_ws/src/rm_gimbal_bridge/src/serial_bridge_node.cpp`
 
 ## Lower-Level Firmware
 
-```text
-firmware/stm32_gimbal_control/
-├── Src/
-├── Inc/
-├── Chassis/
-├── IMU/
-├── algorithm/
-├── USB_DEVICE/
-├── Drivers/
-├── Middlewares/
-└── Makefile
-```
+Current STM32 firmware lives under `firmware/stm32_gimbal_control/`.
 
-Primary control sources:
+Primary paths:
 
 - `firmware/stm32_gimbal_control/Chassis/remote_control.c`
 - `firmware/stm32_gimbal_control/USB_DEVICE/App/usbd_cdc_if.c`
@@ -79,24 +76,19 @@ Primary control sources:
 - `firmware/stm32_gimbal_control/Src/target_state.c`
 - `firmware/stm32_gimbal_control/Src/gimbal_task.c`
 
-## Data And Model Workflow
+## Data And Model Policy
 
-```text
-datasets/raw/
-datasets/labeled/
-datasets/splits/
-datasets/manifests/
-models/
-tools/capture/
-tools/labeling/
-tools/training/
-tools/evaluation/
-```
-
-Keep small metadata, configs, and reports in Git. Do not commit large raw datasets or model weights without explicit approval.
+- `models/` keeps model metadata, reports, and current runtime configuration notes.
+- `datasets/` keeps skeleton directories, manifests, and examples.
+- Large datasets, training weights, exported ONNX files, and quantization outputs should stay outside this main repository unless a later release decision explicitly changes that policy.
 
 ## Migration Rule
 
-Keep upper-level changes in `ros2_ws/`, firmware changes in `firmware/stm32_gimbal_control/`, and tooling/model workflow changes under `tools/`, `datasets/`, or `models/`.
+Keep runtime changes scoped to their owning area:
 
-The staged migration details are in `docs/migration_plan.md`.
+- ROS2 upper-level code: `ros2_ws/`
+- STM32 firmware: `firmware/stm32_gimbal_control/`
+- top-level user entry scripts: `scripts/`
+- repository governance and release preparation: `docs/`
+
+Current stage is repository convergence only. Do not mix algorithm, parameter, inference, firmware, launch, YAML, shell, C++, Python, or header changes into this documentation cleanup round.
