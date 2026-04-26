@@ -56,3 +56,105 @@ __pycache__/
 # Temp scripts
 # =========================
 tmp_*.exp
+
+# =========================
+# Repository governance additions (2026-04-25)
+# Keep README, docs, source files, scripts, and YAML visible.
+# =========================
+
+# Model artifacts
+*.pt
+*.pth
+*.onnx
+*.engine
+*.trt
+*.pb
+*.h5
+*.keras
+
+# Dataset and calibration payloads
+datasets/raw/
+datasets/raw/**/*.bmp
+datasets/raw/**/*.jpg
+datasets/raw/**/*.jpeg
+datasets/raw/**/*.png
+datasets/raw/**/*.npy
+datasets/labeled/**/*.bmp
+datasets/labeled/**/*.jpg
+datasets/labeled/**/*.jpeg
+datasets/labeled/**/*.png
+datasets/labeled/**/*.npy
+calibration_images/
+calibration_rgb_uint8_nchw/
+calibration_bear_rgb_uint8_nchw/
+bear_calibration_images/
+
+# Archives and packaged artifacts
+*.tar.bz2
+*.zip
+*.7z
+*.rar
+
+# Build and generated outputs
+build/
+install/
+log/
+devel/
+logs/
+*.log
+*.err
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+
+# Python environments and local caches
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Quantization and toolchain outputs
+x5_quant_output*
+x5_quant_output/
+x5_quant_output_*/
+model_output*/
+open_explorer_x5*
+open_explorer_x5/
+open_explorer_x5_*/
+rdk_model_zoo-main/
+v123home/
+*.tmp
+*.temp
+*.bak
+
+# Media and ROS bags
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.flv
+*.mp3
+*.wav
+*.aac
+*.flac
+*.bag
+*.bag.active
+
+# Local configuration and credentials
+.env
+.env.local
+config.local.yaml
+.ssh/
+.poshssh/
+credentials.json
+secrets.yaml
