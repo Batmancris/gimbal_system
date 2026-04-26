@@ -1,286 +1,31 @@
-# AGENTS Contract
+# AGENTS.md
 
-This file is the executable development contract for AI coding agents and human contributors working in this repository.
+## 项目维护原则
 
-## 1. Repository Identity And Scope
+- 本仓库面向公开维护，优先保持结构清晰、提交可审查、历史可追踪。
+- 修改前先运行 `git status --short`，确认当前工作区状态，避免覆盖他人改动。
+- 变更应小步、聚焦，避免把无关清理、格式化和功能修改混在一起。
+- 不删除、移动或重命名核心目录和已有文件，除非任务明确授权。
 
-- Historical repository name: `gimbal_system`
-- Preferred future product name: `TianAim`
-- Company context: Tianbot
-- Repository role: integrated product workspace for upper-level perception, lower-level firmware, communication, tooling, and future dataset/model assets
+## 大文件与生成物
 
-This repository contains the active mainline code after the historical-code snapshot was removed. Use Git history or the remote historical `main` branch if old code must be inspected.
+- 不提交大文件或生成物，包括模型权重、导出模型、量化产物、视频、数据集和构建输出。
+- 常见应忽略内容包括 `.pt`、`.pth`、`.onnx`、`.bin`、`.engine`、`build/`、`install/`、`log/`、`logs/`、数据集原始文件和量化输出目录。
+- 需要记录模型或数据来源时，用文档记录元数据和外部位置，不把实际载荷放入 Git。
 
-## 2. Source Of Truth
+## 运行代码维护
 
-When information conflicts, use this order:
+- 不随意修改运行代码。涉及 `ros2_ws`、`firmware`、`scripts`、模型推理、控制算法、通信协议、启动流程等内容时，先确认需求、影响范围和验证方式。
+- 不做顺手重构。只有在完成当前任务确实必要时，才改动相关代码。
 
-1. current source files, launch files, Makefiles, scripts, and package metadata
-2. the nearest `README.md`
-3. `docs/` architecture, migration, and backlog documents
-4. historical handover or backup materials from Git history or the remote historical `main` branch
+## 验证要求
 
-Do not treat old split-repository notes, backups, or legacy README variants as the primary source of truth.
+- 代码修改必须可验证。每次代码或配置变更都应给出并尽量运行对应验证命令。
+- 如果验证因环境限制无法运行，需在交付说明中写明原因和未验证风险。
+- 文档和仓库治理类修改至少运行 `git status --short` 和 `git diff --stat` 检查范围。
 
-## 3. Current Mainline Directories
+## 参数修改记录
 
-Current physical mainline paths:
-
-- ROS2 upper-level mainline: `ros2_ws/`
-- STM32 firmware mainline: `firmware/stm32_gimbal_control/`
-
-Current product-oriented transition anchors:
-
-- `ros2_ws/`
-- `firmware/`
-- `datasets/`
-- `models/`
-- `tools/`
-- `scripts/`
-- `docs/`
-- `archive/`
-
-Important:
-
-- `ros2_ws/` is the real ROS2 source tree today
-- `firmware/stm32_gimbal_control/` is the real firmware source tree today
-- the ROS2 mainline migration to `ros2_ws/` has happened
-- the firmware mainline migration into `firmware/` has happened
-- top-level scripts use `scripts/tianaim_paths.sh` for staged path compatibility
-- `TIANAIM_ROS_WS` may override the local ROS2 workspace path
-- `TIANAIM_FIRMWARE_DIR` may override the local firmware project path
-- RDK scripts may override `REMOTE_SRC_DIR` and `REMOTE_SCRIPT_DIR`, but default to the current `/home/sunrise/rm_ws/src` layout
-
-## 4. Directory Ownership
-
-`ros2_ws/`
-
-- owns the current ROS2 / TROS / RDK-X5 runtime mainline
-- includes `src/hik_camera`, `src/rm_armor_detection`, and `src/rm_gimbal_bridge`
-- owns current RDK runtime scripts under `scripts/`
-- default place for upper-level code changes
-
-`firmware/stm32_gimbal_control/`
-
-- owns the current STM32 lower-level gimbal control firmware
-- default place for lower-level control and communication-path changes
-
-`tools/`
-
-- owns small helper tools, diagnostics, and offline data workflows
-- safe place for new capture/labeling/training/evaluation helpers
-
-`datasets/`
-
-- owns dataset structure, manifests, and split metadata
-- do not commit large raw datasets unless explicitly intended
-
-`models/`
-
-- owns model metadata, export conventions, and lightweight placeholders
-- avoid committing large binary weights without approval
-
-`docs/`
-
-- owns architecture, roadmap, and migration records
-- every structural change should update relevant docs
-
-`archive/`
-
-- owns audit notes and recovery notes only
-- do not add runtime code, historical snapshots, or backup repositories here
-
-## 5. Communication And Interface Contracts
-
-Current verified whole-system path:
-
-```text
-remote control
-  -> DBUS / USART3 DMA
-  -> STM32 remote_control
-  -> gimbal mode / manual control
-
-hik_camera
-  -> rm_armor_detection
-  -> rm_gimbal_bridge
-  -> USB-CDC serial device
-  -> STM32 vision_input
-  -> target_state
-  -> gimbal_task
-```
-
-Upper-level interfaces:
-
-- camera publishes `image_raw` and `/hbmem_img`
-- detector consumes `/hbmem_img`
-- detector publishes `/dnn_node_sample`
-- bridge consumes `ai_msgs/msg/PerceptionTargets`
-
-Current bridge protocol:
-
-- location: `ros2_ws/src/rm_gimbal_bridge/src/serial_bridge_node.cpp`
-- current frame format: `0xFA 0xFB X_L X_H Y_L Y_H 0xFC 0xFD`
-
-Lower-level ingest path:
-
-- remote control input: `firmware/stm32_gimbal_control/Chassis/remote_control.c`
-- USB-CDC vision input: `firmware/stm32_gimbal_control/USB_DEVICE/App/usbd_cdc_if.c`
-- shared vision parser: `firmware/stm32_gimbal_control/Src/vision_input.c`
-- target state update: `firmware/stm32_gimbal_control/Src/target_state.c`
-- control application: `firmware/stm32_gimbal_control/Src/gimbal_task.c`
-
-Communication rule:
-
-- DBUS is the current remote-control path into the lower-level firmware
-- USB-CDC is the current upper-to-lower vision path in active scripts and firmware hooks
-- keep UART-compatible parser/framing paths unless explicit system-level validation says they can be removed
-
-## 6. Build, Run, And Test Commands
-
-Top-level convenience entry points:
-
-- ROS2 build: `bash scripts/build_ros2_mainline.sh`
-- firmware build: `bash scripts/build_firmware_mainline.sh`
-- bridge run: `bash scripts/run_ros2_bridge.sh`
-
-These wrappers should be preferred during migration because they preserve compatibility with both the current physical paths and the future product-oriented paths.
-
-Direct current mainline commands:
-
-- ROS2 build:
-  ```bash
-  cd ros2_ws
-  source /opt/tros/humble/setup.bash
-  colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
-  ```
-- ROS2 board-side startup:
-  ```bash
-  bash ros2_ws/scripts/start_autoaim_tmux.sh
-  ```
-- bridge startup:
-  ```bash
-  bash ros2_ws/scripts/start_rm_bridge_tmux.sh
-  ```
-- firmware build:
-  ```bash
-  make -C "firmware/stm32_gimbal_control"
-  ```
-
-If a change touches:
-
-- only docs: validate links and path references
-- Python tools: run `python3 -m py_compile ...`
-- ROS2 launch/scripts: run shell syntax checks where practical
-- firmware control logic: at minimum compile if toolchain is available
-
-## 7. Safe Vs. Cautious Edit Zones
-
-Usually safe to modify directly:
-
-- `docs/`
-- `tools/`
-- top-level `scripts/`
-- new files under `datasets/` and `models/` that are metadata-oriented
-- README and AGENTS documentation
-
-Modify carefully and keep scope small:
-
-- `ros2_ws/scripts/`
-- ROS2 launch/config files
-- `ros2_ws/src/rm_gimbal_bridge/`
-- `firmware/stm32_gimbal_control/Src/gimbal_task.*`
-- `firmware/stm32_gimbal_control/Src/vision_input.*`
-- package names, topics, protocol bytes, serial defaults
-
-Do not casually rewrite:
-
-- protocol framing already validated with hardware
-- DBUS remote-control defaults and USB-CDC vision defaults that are still the stable chain
-- local historical-code snapshots; use Git history or the remote historical `main` branch instead
-
-## 8. Naming Rules
-
-- new directories should be lowercase, stable, and contain no spaces
-- new Python modules and scripts should follow PEP 8
-- new product-facing names should align with `TianAim` / `tianaim_*`
-- do not perform wide renames of active runtime packages unless the migration plan and references are updated together
-
-## 9. Data And Model Directory Contract
-
-Dataset structure:
-
-- `datasets/raw/`
-- `datasets/labeled/`
-- `datasets/splits/`
-- `datasets/manifests/`
-
-Tool structure:
-
-- `tools/capture/`
-- `tools/labeling/`
-- `tools/training/`
-- `tools/evaluation/`
-
-Model structure:
-
-- `models/README.md` documents storage and export expectations
-
-Manifest expectations:
-
-- every capture session should emit a manifest
-- file naming should be timestamp-based and session-stable
-- calibration, environment, and camera metadata should be recorded whenever available
-
-## 10. Documentation Sync Requirement
-
-Any change to one of these areas must update the nearest relevant docs in the same turn when practical:
-
-- directory structure
-- build/run commands
-- protocol entry points
-- dataset conventions
-- naming or ownership expectations
-
-At minimum, keep these in sync:
-
-- `README.md`
-- `AGENTS.md`
-- `docs/architecture.md`
-- `docs/migration_plan.md` when migration state changes
-- `docs/backlog.md` when planned work changes
-
-Historical audit records belong under `archive/`, for example `archive/repo_audit_2026-04-11.md`; do not treat archived audit files as daily documentation entry points.
-
-## 11. Minimum Verification After Changes
-
-After code or script changes, agents should perform the minimum practical verification:
-
-- `python3 -m py_compile` for changed Python tools/scripts
-- `bash -n` for changed shell scripts
-- `colcon build --packages-select ...` for affected ROS2 packages when dependencies are available
-- `make -C "firmware/stm32_gimbal_control"` for firmware changes when the ARM toolchain is available
-
-If verification cannot be completed, state exactly what blocked it.
-
-## 12. Migration Guidance
-
-Preferred future structure:
-
-```text
-/
-├── docs/
-├── firmware/
-├── ros2_ws/
-├── datasets/
-├── models/
-├── tools/
-├── scripts/
-└── archive/
-```
-
-Migration principle:
-
-- add transition layers first
-- move active code only in reviewable, compatibility-preserving steps
-- update README, scripts, and launch references together
-- do not break the verified runtime chain for a cosmetic rename
+- 参数修改必须记录，包括参数名、旧值、新值、修改原因和验证结果。
+- 涉及 PID、LQR、Kalman、检测阈值、超时、串口协议、量化配置等参数时，先确认是否属于本轮任务范围。
+- 参数记录应放在项目约定的调参或变更记录文档中；如果不存在，应在提交说明中明确记录。
