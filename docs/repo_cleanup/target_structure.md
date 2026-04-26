@@ -29,9 +29,9 @@ gimbal_system/
 - `scripts/`: top-level build and run wrappers.
 - `models/`: model metadata, reports, and runtime configuration notes.
 - `datasets/`: dataset skeleton, manifests, and examples only.
-- `docs/`: architecture, cleanup, release, and audit documents.
+- `docs/`: architecture, deployment, maintenance, and release-risk documents.
 - `assets/`: lightweight visual assets.
-- `archive/`: historical audit and recovery notes.
+- `archive/`: optional historical notes.
 
 ## Excluded From Main Repository
 

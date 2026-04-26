@@ -2,7 +2,7 @@
 
 Updated: 2026-04-26
 
-This document records the current main repository architecture after the training, quantization, and capture tools were split out.
+This document records the current main repository architecture.
 
 ## Repository Scope
 
@@ -82,13 +82,13 @@ Primary paths:
 - `datasets/` keeps skeleton directories, manifests, and examples.
 - Large datasets, training weights, exported ONNX files, and quantization outputs should stay outside this main repository unless a later release decision explicitly changes that policy.
 
-## Migration Rule
+## Maintenance Boundaries
 
 Keep runtime changes scoped to their owning area:
 
 - ROS2 upper-level code: `ros2_ws/`
 - STM32 firmware: `firmware/stm32_gimbal_control/`
 - top-level user entry scripts: `scripts/`
-- repository governance and release preparation: `docs/`
+- repository governance, maintenance notes, and release preparation: `docs/`
 
-Current stage is repository convergence only. Do not mix algorithm, parameter, inference, firmware, launch, YAML, shell, C++, Python, or header changes into this documentation cleanup round.
+Documentation-only cleanup should not mix algorithm, parameter, inference, firmware, launch, YAML, shell, C++, Python, or header changes into the same change set.

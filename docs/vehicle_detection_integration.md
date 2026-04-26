@@ -1,7 +1,7 @@
 # Vehicle Detection Integration
 
-This document turns the vehicle-following migration idea into a concrete phase-1
-repository plan.
+This document records the vehicle detector integration contract for the current
+gimbal runtime tree.
 
 ## Goal
 
@@ -74,9 +74,13 @@ Supported selection modes after this change:
 ## Model direction
 
 This project should use board-side inference on the RDK-X5 rather than a local PC
-runtime. The currently discovered quantized model is:
+runtime. Runtime model binaries that remain in this repository should stay under
+the owning ROS2 package configuration directory, for example:
 
-`E:\research\1\yolo\hiki training\model_training\runs\vehicle_yolov8x_4090\X系列量化任务-68455350_all_results\quant.bin`
+`ros2_ws/src/rm_vehicle_detection/config/quant.bin`
+
+Training workspaces, raw datasets, checkpoints, and quantization outputs stay
+outside this public main repository.
 
 ## Next implementation step
 
