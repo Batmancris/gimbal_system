@@ -87,48 +87,6 @@ ssh rdk-x5 "FOLLOW_PROFILE=stable bash /home/sunrise/rm_ws/scripts/start_fast_fo
 | `rm-autoaim.service` | systemd service 文件 |
 | `rm-bridge.service` | systemd service 文件 |
 
-## 当前默认环境变量
-
-### 检测侧
-
-```bash
-DETECTOR_TYPE=bear
-DETECTOR_TOPIC=/bear_detection/targets
-BEAR_SCORE_THRESHOLD=0.71
-```
-
-### 桥接侧（fast_best profile）
-
-桥接参数集中在 `run_rm_bridge_loop.sh` 中维护，不要在其他地方重复定义。
-
-```bash
-ALLOWED_TARGET_TYPES=bear
-BRIDGE_MIN_CONFIDENCE=0.71
-FOLLOW_SEND_RATE_HZ=80.0
-FOLLOW_CONTROL_MODE=light_predict
-FAST_FOLLOW_MAX_STEP_PX=105.0
-FAST_FOLLOW_ERROR_PX=95.0
-FAST_FOLLOW_SMOOTHING_ALPHA=0.62
-LIGHT_FOLLOW_GAIN=0.58
-TARGET_HOLD_MS=240
-```
-
-### 串口
-
-```bash
-SERIAL_PORT=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
-```
-
-## 查看运行状态
-
-```bash
-ssh rdk-x5 "source /opt/tros/humble/setup.bash; source /home/sunrise/rm_ws/install/setup.bash; \
-  ros2 node list; \
-  ros2 topic info /hbmem_img; \
-  ros2 topic info /bear_detection/targets; \
-  tmux -L autoaim ls 2>/dev/null || true"
-```
-
 ## 约束
 
 - 不允许新增 `start_xxx_new.sh` 启动脚本

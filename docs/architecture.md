@@ -13,18 +13,11 @@ tools/                           # capture, labeling, training, evaluation helpe
 scripts/                         # top-level wrapper commands
 ```
 
-Historical code snapshots are no longer retained in the working tree. Use Git
-history or the remote historical `main` branch when old code needs to be
-inspected.
-
 ## Runtime Chain
 
-```text
-remote control
-  -> DBUS / USART3 DMA
-  -> remote_control
-  -> gimbal mode / manual control
+当前主链路（bear-follow baseline）:
 
+```text
 hik_camera
   -> /hbmem_img
   -> rm_bear_detection
@@ -36,17 +29,14 @@ hik_camera
   -> gimbal_task
 ```
 
-Legacy compatibility paths (not used in production):
+遥控链路:
 
 ```text
-rm_vehicle_detection -> /vehicle_detection/targets
-rm_armor_detection   -> /dnn_node_sample
+remote control
+  -> DBUS / USART3 DMA
+  -> remote_control
+  -> gimbal mode / manual control
 ```
-
-The current lower-level remote-control path is DBUS-like RC input parsed on
-`USART3 + DMA + IDLE`. The current upper-to-lower vision path uses USB-CDC in
-the active scripts and firmware hooks, while the shared `vision_input` parser
-keeps the validated `0xFA 0xFB ... 0xFC 0xFD` framing compatible.
 
 ## Upper-Level Runtime
 
@@ -107,5 +97,3 @@ Keep small metadata, configs, and reports in Git. Do not commit large raw datase
 ## Migration Rule
 
 Keep upper-level changes in `ros2_ws/`, firmware changes in `firmware/stm32_gimbal_control/`, and tooling/model workflow changes under `tools/`, `datasets/`, or `models/`.
-
-The staged migration details are in `docs/migration_plan.md`.
