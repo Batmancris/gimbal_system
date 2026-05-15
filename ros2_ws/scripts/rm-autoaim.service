@@ -16,7 +16,7 @@ Environment=CAMERA_READY_TIMEOUT_SEC=8
 Environment=TMUX_SOCKET=autoaim
 Environment=DETECTOR_TYPE=bear
 Environment=DETECTOR_TOPIC=/bear_detection/targets
-Environment=ENABLE_VISUALIZER=true
+Environment=ENABLE_VISUALIZER=false
 Environment=DISPLAY_VALUE=:0
 Environment=XAUTHORITY_VALUE=/home/sunrise/.Xauthority
 Environment=XDG_RUNTIME_DIR_VALUE=/run/user/1000
@@ -31,7 +31,7 @@ Environment=VIS_WINDOW_WIDTH=1920
 Environment=VIS_WINDOW_HEIGHT=1080
 Environment=VEHICLE_PUBLISH_DEBUG_TEXT=false
 Environment=VEHICLE_LOG_LEVEL=warn
-Environment=BEAR_LOG_LEVEL=info
+Environment=BEAR_LOG_LEVEL=warn
 Environment=BEAR_SCORE_THRESHOLD=0.71
 Environment=BEAR_STABLE_REQUIRED_HITS=2
 Environment=BEAR_STABLE_MATCH_RADIUS_PX=140.0

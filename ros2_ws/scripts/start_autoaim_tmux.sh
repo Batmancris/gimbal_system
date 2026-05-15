@@ -21,7 +21,7 @@ TMUX_SOCKET="${TMUX_SOCKET:-autoaim}"
 DETECTOR_TYPE="${DETECTOR_TYPE:-bear}"
 DETECTOR_TOPIC="${DETECTOR_TOPIC:-/bear_detection/targets}"
 VEHICLE_MODEL_PATH="${VEHICLE_MODEL_PATH:-}"
-ENABLE_VISUALIZER="${ENABLE_VISUALIZER:-true}"
+ENABLE_VISUALIZER="${ENABLE_VISUALIZER:-false}"
 VIS_MAX_FPS="${VIS_MAX_FPS:-24.0}"
 VIS_SCALE="${VIS_SCALE:-1.0}"
 VIS_DEBUG_TOPIC="${VIS_DEBUG_TOPIC:-/bear_detection/debug_text}"
@@ -32,7 +32,7 @@ VIS_WINDOW_WIDTH="${VIS_WINDOW_WIDTH:-1920}"
 VIS_WINDOW_HEIGHT="${VIS_WINDOW_HEIGHT:-1080}"
 VEHICLE_PUBLISH_DEBUG_TEXT="${VEHICLE_PUBLISH_DEBUG_TEXT:-false}"
 VEHICLE_LOG_LEVEL="${VEHICLE_LOG_LEVEL:-warn}"
-BEAR_LOG_LEVEL="${BEAR_LOG_LEVEL:-info}"
+BEAR_LOG_LEVEL="${BEAR_LOG_LEVEL:-warn}"
 BEAR_SCORE_THRESHOLD="${BEAR_SCORE_THRESHOLD:-0.71}"
 BEAR_STABLE_REQUIRED_HITS="${BEAR_STABLE_REQUIRED_HITS:-2}"
 BEAR_STABLE_MATCH_RADIUS_PX="${BEAR_STABLE_MATCH_RADIUS_PX:-140.0}"
@@ -66,7 +66,7 @@ tmux_cmd new-session -d -s hik_cam "env REMOTE_WS='${REMOTE_WS}' REMOTE_SRC_DIR=
 
 camera_ready_deadline=$((SECONDS + CAMERA_READY_TIMEOUT_SEC))
 while [ "${SECONDS}" -lt "${camera_ready_deadline}" ]; do
-  if timeout 2 ros2 topic info /image_raw 2>/dev/null | grep -q "Publisher count: 1"; then
+  if timeout 2 ros2 topic info /hbmem_img 2>/dev/null | grep -q "Publisher count: 1"; then
     break
   fi
   sleep 0.5

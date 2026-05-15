@@ -167,12 +167,17 @@ class BearDetectionNode : public hobot::dnn_node::DnnNode {
 
     LogModelInputInfo();
 
+    // QoS: keep_last(1) so if inference is slower than camera FPS,
+    // the middleware drops stale frames and only delivers the newest one.
+    // This prevents queue buildup and reduces end-to-end latency.
+    auto sub_qos = rclcpp::SensorDataQoS().keep_last(1);
     image_subscription_ = this->create_subscription<hbm_img_msgs::msg::HbmMsg1080P>(
       image_topic_,
-      rclcpp::SensorDataQoS(),
+      sub_qos,
       std::bind(&BearDetectionNode::OnImage, this, std::placeholders::_1));
 
-    publisher_ = this->create_publisher<ai_msgs::msg::PerceptionTargets>(output_topic_, 10);
+    auto pub_qos = rclcpp::SensorDataQoS().keep_last(1);
+    publisher_ = this->create_publisher<ai_msgs::msg::PerceptionTargets>(output_topic_, pub_qos);
     if (publish_debug_text_) {
       debug_publisher_ = this->create_publisher<std_msgs::msg::String>(debug_topic_, 10);
     }
@@ -203,9 +208,21 @@ class BearDetectionNode : public hobot::dnn_node::DnnNode {
       return 0;
     }
 
-    const auto best_anchor = rm_bear_detection::FindBestAnchor(node_output);
-    const auto top_anchors = rm_bear_detection::FindTopAnchors(node_output, 5);
-    const auto output_debug = rm_bear_detection::GetOutputTensorDebugInfo(node_output);
+    const bool need_best_anchor = debug_anchor_logs_ || log_detections_ || publish_debug_text_;
+    const bool need_debug_info = !logged_output_tensor_ || publish_debug_text_;
+
+    rm_bear_detection::DebugAnchorInfo best_anchor;
+    if (need_best_anchor) {
+      best_anchor = rm_bear_detection::FindBestAnchor(node_output);
+    }
+    std::vector<rm_bear_detection::DebugAnchorInfo> top_anchors;
+    if (publish_debug_text_) {
+      top_anchors = rm_bear_detection::FindTopAnchors(node_output, 5);
+    }
+    rm_bear_detection::OutputTensorDebugInfo output_debug;
+    if (need_debug_info) {
+      output_debug = rm_bear_detection::GetOutputTensorDebugInfo(node_output);
+    }
     if (!logged_output_tensor_) {
       RCLCPP_INFO(
         this->get_logger(),

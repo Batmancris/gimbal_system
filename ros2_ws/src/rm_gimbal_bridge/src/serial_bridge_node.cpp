@@ -160,7 +160,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
       declare_parameter<std::vector<std::string>>(
       "allowed_target_types", std::vector<std::string>{"vehicle"});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
-    log_selected_target_ = declare_parameter<bool>("log_selected_target", true);
+    log_selected_target_ = declare_parameter<bool>("log_selected_target", false);
     log_diag_feedback_ = declare_parameter<bool>("log_diag_feedback", false);
     require_lower_vision_enabled_ =
       declare_parameter<bool>("require_lower_vision_enabled", true);

@@ -11,7 +11,7 @@ rm_gimbal_bridge:
     enemy_prefix: ""
     allowed_target_types: ["vehicle"]
     selection_mode: "closest"
-    log_selected_target: true
+    log_selected_target: false
     log_diag_feedback: false
     enable_fixed_rate_follow: true
     follow_send_rate_hz: 50.0
