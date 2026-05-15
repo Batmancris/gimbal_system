@@ -153,13 +153,9 @@ Direct current mainline commands:
   source /opt/tros/humble/setup.bash
   colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
   ```
-- ROS2 board-side startup:
+- ROS2 board-side startup (唯一推荐入口):
   ```bash
-  bash ros2_ws/scripts/start_autoaim_tmux.sh
-  ```
-- bridge startup:
-  ```bash
-  bash ros2_ws/scripts/start_rm_bridge_tmux.sh
+  bash ros2_ws/scripts/start_fast_follow_verified.sh
   ```
 - firmware build:
   ```bash

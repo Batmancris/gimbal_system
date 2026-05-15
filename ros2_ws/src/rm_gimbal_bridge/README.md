@@ -70,12 +70,10 @@ ros2 run rm_gimbal_bridge rm_gimbal_bridge_node --ros-args \
   -p serial_port:=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
 ```
 
-通过 tmux 脚本运行：
+通过主链路脚本启动：
 
 ```bash
-export DETECTOR_TOPIC=/bear_detection/targets
-export ALLOWED_TARGET_TYPES=bear
-bash src/scripts/start_rm_bridge_tmux.sh
+bash ros2_ws/scripts/start_fast_follow_verified.sh
 ```
 
 查看桥接日志：

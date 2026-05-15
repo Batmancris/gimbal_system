@@ -58,8 +58,7 @@ ros2 run rm_vehicle_detection rm_vehicle_detection_node --ros-args \
 export DETECTOR_TYPE=vehicle
 export DETECTOR_TOPIC=/vehicle_detection/targets
 export ALLOWED_TARGET_TYPES=vehicle
-bash src/scripts/start_autoaim_tmux.sh
-bash src/scripts/start_rm_bridge_tmux.sh
+bash ros2_ws/scripts/start_fast_follow_verified.sh
 ```
 
 ## 维护说明

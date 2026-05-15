@@ -79,7 +79,7 @@ RDK X5 rm_gimbal_bridge
 
 ```bash
 export BRIDGE_LOG_DIAG_FEEDBACK=true
-bash src/scripts/start_rm_bridge_tmux.sh
+bash ros2_ws/scripts/start_fast_follow_verified.sh
 ```
 
 ## 高速跟随调试建议
