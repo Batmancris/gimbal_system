@@ -70,7 +70,7 @@
 | `scripts/build_firmware_mainline.sh` | 构建 | 保留 | 固件构建 |
 | `scripts/run_ros2_bridge.sh` | legacy | 归档候选 | 旧版桥接启动 |
 | `scripts/tianaim_paths.sh` | 工具 | 保留 | 路径变量定义 |
-| `scripts/serve_single_file.ps1` | unknown | 可删除候选 | 临时文件服务脚本 |
+| `scripts/serve_single_file.ps1` | unknown | 已删除 | 临时文件服务脚本（已清理） |
 
 ## 3. 可删除候选
 
@@ -78,7 +78,7 @@
 
 | 文件 | 删除风险 | 建议处理 | 需要用户确认 |
 |---|---|---|---|
-| `scripts/serve_single_file.ps1` | 低 | 删除或移到 archive/ | 是 |
+| `scripts/serve_single_file.ps1` | 低 | 已删除（未跟踪临时文件） | 已完成 |
 | `ros2_ws/scripts/rm-autoaim.service` | 低 | 移到 archive/ | 是 |
 | `ros2_ws/scripts/rm-bridge.service` | 低 | 移到 archive/ | 是 |
 | `ros2_ws/scripts/install_autostart_on_rdk_x5.sh` | 低 | 移到 archive/ | 是 |

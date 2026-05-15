@@ -2,13 +2,13 @@
 
 > 生成时间: 2026-05-15
 > 基线 commit: f8cdec2
-> 分支: feature/formula-mini-kt-cloud-follow
+> 分支: feature/formula-mini-kt-cloud-follow（历史命名；当前运行目标是 bear，KT 适配是后续工作）
 
 ## 1. 当前稳定基线
 
 | 项目 | 值 |
 |---|---|
-| GitHub branch | `feature/formula-mini-kt-cloud-follow` |
+| GitHub branch | `feature/formula-mini-kt-cloud-follow`（历史命名；当前运行目标是 bear） |
 | HEAD commit | `f8cdec2 chore: consolidate headless fast follow startup scripts` |
 | 推荐启动命令 | `ssh rdk-x5 "bash /home/sunrise/rm_ws/scripts/start_fast_follow_verified.sh"` |
 | 回滚启动命令 | `ssh rdk-x5 "FOLLOW_PROFILE=stable bash /home/sunrise/rm_ws/scripts/start_fast_follow_verified.sh"` |

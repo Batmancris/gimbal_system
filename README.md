@@ -22,12 +22,23 @@ TianAim 是 Tianbot 云台视觉跟随系统的一体化工作区，覆盖：
 
 ## 当前状态
 
-**v1 headless fast_best stable baseline** (2026-05-15)
+**TianAim v1 headless fast_best bear-follow baseline** (2026-05-15)
 
+- 当前运行目标：bear（熊）
 - 跟随丝滑，卡顿明显减少
 - 偶发卡顿主要怀疑来自目标出框/丢检/bbox 突变
 - 当前基线 commit: `f8cdec2`
-- 分支: `feature/formula-mini-kt-cloud-follow`
+- 分支: `feature/formula-mini-kt-cloud-follow`（历史命名；当前运行目标是 bear，KT 适配是后续工作）
+
+### 当前不包含
+
+- KT 模型
+- KT 检测器
+- KT 专用目标输出
+
+### 后续工作
+
+- KT target adaptation / detector replacement / target_type abstraction
 
 ## 当前主链路
 
@@ -145,6 +156,7 @@ ssh rdk-x5 "tmux -L autoaim kill-server 2>/dev/null; pkill -f 'ros2 run' || true
 
 ## 后续 TODO
 
+- KT target adaptation / detector replacement / target_type abstraction（后续目标适配）
 - 出框恢复策略：目标丢失后的重捕获逻辑
 - 尾延迟优化：相机/检测 CPU 较高，profile 尾延迟
 - 检测跳变分析：bbox 突变和多框场景专项分析

@@ -193,7 +193,7 @@ BSD 3-Clause License
 
 ### 8.2 TianAim 现状
 - Commit message 基本遵循 conventional commits
-- 分支：feature/formula-mini-kt-cloud-follow
+- 分支：feature/formula-mini-kt-cloud-follow（历史命名；当前运行目标是 bear，KT 适配是后续工作）
 
 ### 8.3 差距
 - **基本符合**，工作流执行良好

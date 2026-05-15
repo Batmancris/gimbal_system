@@ -2,6 +2,25 @@
 
 > 基于 Tianbot 风格审计，第一轮只做文档归档和低风险清理
 
+## 项目状态
+
+**当前完成：** TianAim v1 headless fast_best bear-follow baseline
+- 当前运行目标：bear（熊）
+- 当前主链路：`hik_camera -> /hbmem_img -> rm_bear_detection -> /bear_detection/targets -> rm_gimbal_bridge -> /dev/ttyACM0`
+- 当前检测包：`rm_bear_detection`
+- 当前 topic：`/bear_detection/targets`
+- 当前 allowed_target_types：`bear`
+
+**当前不包含：**
+- KT 模型
+- KT 检测器
+- KT 专用目标输出
+
+**后续工作：**
+- KT target adaptation / detector replacement / target_type abstraction
+
+> 注：分支名 `feature/formula-mini-kt-cloud-follow` 是历史命名，当前运行目标是 bear。
+
 ## 文件分类统计
 
 - **总文件数**：422
@@ -101,7 +120,7 @@
 ### 临时脚本
 | 路径 | 说明 | 被引用 | 删除风险 | 建议 |
 |------|------|--------|----------|------|
-| scripts/serve_single_file.ps1 | PowerShell 单文件服务 | 无 | 低 | 删除 |
+| scripts/serve_single_file.ps1 | PowerShell 单文件服务 | 无 | 低 | 已删除 |
 | ros2_ws/scripts/usb_cdc_pitch_control_test.py | USB CDC 测试 | 无 | 低 | 移动到 tools/ 或删除 |
 
 ### 重复/冗余脚本
