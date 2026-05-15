@@ -1,33 +1,32 @@
 # ros2_ws
 
-`ros2_ws` 是 RDK X5 上运行的 ROS2/TROS 主工作区，负责相机采集、模型推理、目标发布、云台桥接和板端启动脚本。
+RDK X5 上运行的 ROS2/TROS 主工作区，负责相机采集、模型推理、目标发布、云台桥接和板端启动脚本。
 
 ## 当前默认链路
-
-当前默认调试目标是 bear，低速跟随已经比较丝滑，高速跟随仍然存在跟不上的情况：
 
 ```text
 hik_camera -> /hbmem_img -> rm_bear_detection -> /bear_detection/targets -> rm_gimbal_bridge -> STM32 USB-CDC
 ```
 
-保留的兼容链路：
+当前状态: v1 headless fast_best stable baseline，跟随丝滑，偶发卡顿主要来自出框/丢检。
 
-```text
-hik_camera -> /hbmem_img -> rm_vehicle_detection -> /vehicle_detection/targets
-hik_camera -> /hbmem_img -> rm_armor_detection -> /dnn_node_sample
-```
+### 禁止依赖
+
+- `/image_raw` 不用于主链路
+- `rm_vis` 不用于主链路
+- `publish_image_raw:=true` 不使用
 
 ## Packages
 
 ```text
 src/
-|-- hik_camera
-|-- rm_armor_detection
-|-- rm_bear_detection
-|-- rm_vehicle_detection
-|-- rm_gimbal_bridge
-|-- rm_interfaces
-`-- rm_utils
+├── hik_camera/              [core] 海康相机驱动，发布 /hbmem_img
+├── rm_bear_detection/       [core] bear YOLO 检测，发布 /bear_detection/targets
+├── rm_gimbal_bridge/        [core] 云台桥接，订阅 targets，发送 USB-CDC
+├── rm_interfaces/           [core] ROS2 自定义消息/服务定义
+├── rm_utils/                [core] logger, math, heartbeat 工具库
+├── rm_vehicle_detection/    [legacy/optional] vehicle 检测兼容
+└── rm_armor_detection/      [legacy/optional] armor 检测兼容
 ```
 
 ## 在 RDK X5 上构建
@@ -36,34 +35,33 @@ src/
 cd /home/sunrise/rm_ws
 source /opt/tros/humble/setup.bash
 colcon build --packages-select \
-  hik_camera rm_armor_detection rm_vehicle_detection rm_bear_detection rm_gimbal_bridge \
+  hik_camera rm_bear_detection rm_gimbal_bridge rm_interfaces rm_utils \
   --event-handlers console_direct+
 source install/setup.bash
 ```
 
-## 直接运行
+## 一键启动（推荐）
 
-相机：
+```bash
+ssh rdk-x5 "bash /home/sunrise/rm_ws/scripts/start_fast_follow_verified.sh"
+```
+
+## 手动运行（仅调试用）
+
+相机:
 
 ```bash
 ros2 launch hik_camera hik_camera.launch.py
 ```
 
-Bear 检测：
+Bear 检测:
 
 ```bash
 ros2 run rm_bear_detection rm_bear_detection_node --ros-args \
   -p output_topic:=/bear_detection/targets
 ```
 
-Vehicle 检测：
-
-```bash
-ros2 run rm_vehicle_detection rm_vehicle_detection_node --ros-args \
-  -p output_topic:=/vehicle_detection/targets
-```
-
-云台桥接：
+云台桥接:
 
 ```bash
 ros2 run rm_gimbal_bridge rm_gimbal_bridge_node --ros-args \
@@ -72,88 +70,33 @@ ros2 run rm_gimbal_bridge rm_gimbal_bridge_node --ros-args \
   -p serial_port:=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
 ```
 
-## tmux 启动方式
-
-板端脚本位于 `ros2_ws/scripts/`，部署到 RDK X5 后通常在 `/home/sunrise/rm_ws/src/scripts/`。
-
-启动相机、检测和可视化：
-
-```bash
-cd /home/sunrise/rm_ws
-source /opt/tros/humble/setup.bash
-source install/setup.bash
-
-export DETECTOR_TYPE=bear
-export DETECTOR_TOPIC=/bear_detection/targets
-bash src/scripts/start_autoaim_tmux.sh
-```
-
-启动桥接：
-
-```bash
-export DETECTOR_TOPIC=/bear_detection/targets
-export ALLOWED_TARGET_TYPES=bear
-bash src/scripts/start_rm_bridge_tmux.sh
-```
-
-检查状态：
-
-```bash
-bash src/scripts/check_autoaim_topics.sh
-tmux -L autoaim ls
-tmux -L autoaim capture-pane -pt hik_cam
-tmux -L autoaim capture-pane -pt rm_det
-tmux -L bridge capture-pane -pt rm_bridge
-```
-
-停止：
-
-```bash
-bash src/scripts/desktop_stop_full_stack.sh
-```
-
 ## 关键话题
 
-- `/image_raw`：普通 ROS 图像，给可视化使用。
-- `/hbmem_img`：TROS/Hobot shared-memory NV12 图像，给检测节点使用。
-- `/bear_detection/targets`：当前默认 bear 检测输出。
-- `/vehicle_detection/targets`：vehicle 检测输出。
-- `/dnn_node_sample`：armor 兼容输出或共享检测输出。
+| Topic | 类型 | 说明 |
+|---|---|---|
+| `/hbmem_img` | hbm_img_msgs/msg/HbmMsg1080P | TROS shared-memory NV12 图像，检测节点使用 |
+| `/bear_detection/targets` | ai_msgs/msg/PerceptionTargets | bear 检测输出，桥接节点订阅 |
 
-## 调试建议
-
-没有相机输出：
+## 运行状态检查
 
 ```bash
-ros2 topic info /hbmem_img -v
-tmux -L autoaim capture-pane -pt hik_cam
+ssh rdk-x5 "source /opt/tros/humble/setup.bash; source /home/sunrise/rm_ws/install/setup.bash; \
+  ros2 node list; \
+  ros2 topic info /hbmem_img; \
+  ros2 topic info /bear_detection/targets; \
+  fuser -v /dev/ttyACM0 2>/dev/null || true; \
+  tmux -L autoaim ls 2>/dev/null || true"
 ```
 
-没有检测输出：
+## 性能采集
 
 ```bash
-ros2 topic info /bear_detection/targets -v
-tmux -L autoaim capture-pane -pt rm_det
+ssh rdk-x5 "cd /home/sunrise/rm_ws && DURATION=15 bash scripts/profile_fast_follow_link.sh"
 ```
 
-桥接没有发送：
+## 文档
 
-```bash
-ros2 topic echo /bear_detection/targets --once
-tmux -L bridge capture-pane -pt rm_bridge
-ls -l /dev/serial/by-id/
-```
-
-高速跟不上时先打开日志：
-
-```bash
-export BRIDGE_LOG_DIAG_FEEDBACK=true
-export BEAR_LOG_DETECTIONS=true
-bash src/scripts/start_autoaim_tmux.sh
-bash src/scripts/start_rm_bridge_tmux.sh
-```
-
-## 当前限制
-
-低速跟随已经验证为顺滑；高速跟随还没有完全解决。不要只看 ROS 节点是否运行就判断“高速完成”，需要同时看目标误差、桥接发送频率、下位机 `yaw_add_mrad/pitch_add_mrad` 和云台实际响应。
-
+- 启动脚本: `ros2_ws/scripts/README.md`
+- 云台桥接: `ros2_ws/src/rm_gimbal_bridge/README.md`
+- bear 检测: `ros2_ws/src/rm_bear_detection/README.md`
+- 体检报告: `docs/current_health_report.md`

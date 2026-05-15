@@ -1,6 +1,6 @@
 # Architecture
 
-Updated: 2026-04-11
+Updated: 2026-05-15
 
 ## Active Layout
 
@@ -26,14 +26,21 @@ remote control
   -> gimbal mode / manual control
 
 hik_camera
-  -> image_raw / hbmem_img
-  -> rm_armor_detection
-  -> /dnn_node_sample
+  -> /hbmem_img
+  -> rm_bear_detection
+  -> /bear_detection/targets
   -> rm_gimbal_bridge
   -> USB-CDC serial device
   -> vision_input
   -> target_state
   -> gimbal_task
+```
+
+Legacy compatibility paths (not used in production):
+
+```text
+rm_vehicle_detection -> /vehicle_detection/targets
+rm_armor_detection   -> /dnn_node_sample
 ```
 
 The current lower-level remote-control path is DBUS-like RC input parsed on
@@ -44,12 +51,14 @@ keeps the validated `0xFA 0xFB ... 0xFC 0xFD` framing compatible.
 ## Upper-Level Runtime
 
 ```text
-ros2_ws/src/hik_camera/
-ros2_ws/src/rm_armor_detection/
-ros2_ws/src/rm_gimbal_bridge/
-ros2_ws/src/rm_interfaces/
-ros2_ws/src/rm_utils/
-ros2_ws/scripts/
+ros2_ws/src/hik_camera/            [core] camera driver
+ros2_ws/src/rm_bear_detection/     [core] bear YOLO detection (current mainline)
+ros2_ws/src/rm_gimbal_bridge/      [core] gimbal bridge
+ros2_ws/src/rm_interfaces/         [core] message definitions
+ros2_ws/src/rm_utils/              [core] utility library
+ros2_ws/src/rm_armor_detection/    [legacy/optional]
+ros2_ws/src/rm_vehicle_detection/  [legacy/optional]
+ros2_ws/scripts/                   startup/diagnostics/deployment scripts
 ```
 
 Primary bridge source:
