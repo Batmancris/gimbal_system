@@ -99,4 +99,4 @@ ssh rdk-x5 "cd /home/sunrise/rm_ws && DURATION=15 bash scripts/profile_fast_foll
 - 启动脚本: `ros2_ws/scripts/README.md`
 - 云台桥接: `ros2_ws/src/rm_gimbal_bridge/README.md`
 - bear 检测: `ros2_ws/src/rm_bear_detection/README.md`
-- 体检报告: `docs/current_health_report.md`
+- 架构说明: `docs/architecture.md`

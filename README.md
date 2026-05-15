@@ -133,14 +133,15 @@ ssh rdk-x5 "tmux -L autoaim kill-server 2>/dev/null; pkill -f 'ros2 run' || true
 
 ## 文档入口
 
-- 体检报告: `docs/current_health_report.md`
-- 代码审计: `docs/codebase_cleanup_audit.md`
 - 架构说明: `docs/architecture.md`
 - ROS2 脚本: `ros2_ws/scripts/README.md`
 - ROS2 工作区: `ros2_ws/README.md`
 - 云台桥接: `ros2_ws/src/rm_gimbal_bridge/README.md`
 - bear 检测: `ros2_ws/src/rm_bear_detection/README.md`
 - STM32 固件: `firmware/stm32_gimbal_control/README.md`
+- 风格规范: `docs/tianbot_style_notes.md`
+- 清理计划: `docs/productization_cleanup_plan.md`
+- 历史归档: `docs/archive/`
 
 ## 后续 TODO
 
