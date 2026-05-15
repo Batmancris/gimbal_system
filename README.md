@@ -24,11 +24,16 @@ TianAim 是 Tianbot 云台视觉跟随系统的一体化工作区，覆盖：
 
 **TianAim v1 headless fast_best bear-follow baseline** (2026-05-15)
 
+- 运行基线 commit: `f8cdec2`
+- 当前收口 HEAD: `ff1d39e`
+- 稳定 tag: `v1-headless-fast-best-stable`
+- 当前能力：bear-follow baseline
+- KT：后续适配，不是当前能力
 - 当前运行目标：bear（熊）
 - 跟随丝滑，卡顿明显减少
 - 偶发卡顿主要怀疑来自目标出框/丢检/bbox 突变
-- 当前基线 commit: `f8cdec2`
-- 分支: `feature/formula-mini-kt-cloud-follow`（历史命名；当前运行目标是 bear，KT 适配是后续工作）
+- 推荐分支: `feature/bear-follow-baseline`
+- 历史分支: `feature/formula-mini-kt-cloud-follow`
 
 ### 当前不包含
 

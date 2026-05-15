@@ -5,6 +5,11 @@
 ## 项目状态
 
 **当前完成：** TianAim v1 headless fast_best bear-follow baseline
+- 运行基线 commit: `f8cdec2`
+- 当前收口 HEAD: `ff1d39e`
+- 稳定 tag: `v1-headless-fast-best-stable`
+- 当前能力：bear-follow baseline
+- KT：后续适配，不是当前能力
 - 当前运行目标：bear（熊）
 - 当前主链路：`hik_camera -> /hbmem_img -> rm_bear_detection -> /bear_detection/targets -> rm_gimbal_bridge -> /dev/ttyACM0`
 - 当前检测包：`rm_bear_detection`
@@ -19,7 +24,8 @@
 **后续工作：**
 - KT target adaptation / detector replacement / target_type abstraction
 
-> 注：分支名 `feature/formula-mini-kt-cloud-follow` 是历史命名，当前运行目标是 bear。
+> 推荐分支: `feature/bear-follow-baseline`
+> 历史分支: `feature/formula-mini-kt-cloud-follow`（历史命名，当前运行目标是 bear）
 
 ## 文件分类统计
 

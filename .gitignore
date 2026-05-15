@@ -56,3 +56,8 @@ __pycache__/
 # Temp scripts
 # =========================
 tmp_*.exp
+
+# =========================
+# Private references
+# =========================
+private_refs/
