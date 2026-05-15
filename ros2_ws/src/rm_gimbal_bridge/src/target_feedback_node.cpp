@@ -55,6 +55,7 @@ std::string FrameToHexString(const std::array<uint8_t, 8> &frame) {
 class GimbalTargetFeedbackNode : public rclcpp::Node {
  public:
   GimbalTargetFeedbackNode() : Node("rm_gimbal_feedback") {
+    // Legacy default: board scripts override to /bear_detection/targets.
     input_topic_ = declare_parameter<std::string>("input_topic", "/vehicle_detection/targets");
     image_width_ = declare_parameter<int>("image_width", 1280);
     image_height_ = declare_parameter<int>("image_height", 1024);
@@ -64,6 +65,7 @@ class GimbalTargetFeedbackNode : public rclcpp::Node {
     enemy_prefix_ = declare_parameter<std::string>("enemy_prefix", "");
     allowed_target_types_ =
       declare_parameter<std::vector<std::string>>(
+      // Legacy default: board scripts override to {"bear"}.
       "allowed_target_types", std::vector<std::string>{"vehicle"});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_when_empty_ = declare_parameter<bool>("log_when_empty", true);

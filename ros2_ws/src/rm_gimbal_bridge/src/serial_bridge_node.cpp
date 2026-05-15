@@ -147,6 +147,7 @@ uint8_t VisionDiagChecksum(const uint8_t *frame) {
 class GimbalSerialBridgeNode : public rclcpp::Node {
  public:
   GimbalSerialBridgeNode() : Node("rm_gimbal_bridge") {
+    // Legacy default: board scripts override to /bear_detection/targets.
     input_topic_ = declare_parameter<std::string>("input_topic", "/vehicle_detection/targets");
     serial_port_ = declare_parameter<std::string>("serial_port", "/dev/ttyS1");
     baud_rate_ = declare_parameter<int>("baud_rate", 921600);
@@ -158,6 +159,7 @@ class GimbalSerialBridgeNode : public rclcpp::Node {
     enemy_prefix_ = declare_parameter<std::string>("enemy_prefix", "");
     allowed_target_types_ =
       declare_parameter<std::vector<std::string>>(
+      // Legacy default: board scripts override to {"bear"}.
       "allowed_target_types", std::vector<std::string>{"vehicle"});
     selection_mode_ = declare_parameter<std::string>("selection_mode", "closest");
     log_selected_target_ = declare_parameter<bool>("log_selected_target", false);

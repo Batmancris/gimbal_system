@@ -3,7 +3,7 @@
 <package format="3">
   <name>rm_gimbal_bridge</name>
   <version>0.1.0</version>
-  <description>Bridge ROS2 armor detections to the STM32 gimbal serial protocol.</description>
+  <description>Bridge ROS2 bear detections to the STM32 gimbal serial protocol.</description>
   <maintainer email="tianbot@example.com">tianbot</maintainer>
   <license>Apache License 2.0</license>
 

@@ -78,7 +78,7 @@ public:
     }
   }
 
-  // Calculate the distance between armor center and image center
+  // Calculate the distance between target center and image center
   float calculateDistanceToCenter(const cv::Point2f &image_point) const noexcept;
 
   double calculateReprojectionError(const std::vector<cv::Point2f> &image_points,
