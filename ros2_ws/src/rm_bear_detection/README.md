@@ -84,7 +84,13 @@ ros2 run rm_bear_detection rm_bear_detection_node --ros-args \
 - `score_threshold=0.71` 是否会在运动模糊时丢目标。
 - 输出框中心是否稳定，是否存在明显跳变。
 
-如果高速时目标短暂丢失，可以临时降低阈值或稳定命中数做对比测试。当前 `score_threshold` 和 `stable_required_hits` 均通过 ROS2 parameters（`declare_parameter`）配置，不使用环境变量 `BEAR_SCORE_THRESHOLD` / `BEAR_STABLE_REQUIRED_HITS`。
+如果高速时目标短暂丢失，可以临时降低阈值或稳定命中数做对比测试。
+
+### 参数来源说明
+
+- `rm_bear_detection_node` 节点本身通过 ROS2 parameters（`declare_parameter`）读取 `score_threshold`、`stable_required_hits` 等参数，节点本身不直接读取环境变量。
+- 板端启动脚本链路 `start_fast_follow_verified.sh` → `run_rm_det_loop.sh` 会读取环境变量 `BEAR_SCORE_THRESHOLD`、`BEAR_STABLE_REQUIRED_HITS`，并转换为 `--ros-args -p score_threshold:=...` / `--ros-args -p stable_required_hits:=...` 传给节点。
+- 用户既可以通过启动脚本环境变量调整，也可以直接用 `ros2 run ... --ros-args -p` 覆盖参数。
 
 诊断时可通过 `--ros-args` 临时覆盖参数，例如：
 

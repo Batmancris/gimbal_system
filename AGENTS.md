@@ -101,19 +101,19 @@ remote control
   -> gimbal mode / manual control
 
 hik_camera
-  -> rm_armor_detection
+  -> /hbmem_img
+  -> rm_bear_detection
+  -> /bear_detection/targets
   -> rm_gimbal_bridge
-  -> USB-CDC serial device
-  -> STM32 vision_input
-  -> target_state
-  -> gimbal_task
+  -> STM32 USB-CDC
+  -> GM6020
 ```
 
 Upper-level interfaces:
 
 - camera publishes `image_raw` and `/hbmem_img`
 - detector consumes `/hbmem_img`
-- detector publishes `/dnn_node_sample`
+- detector publishes `/bear_detection/targets`
 - bridge consumes `ai_msgs/msg/PerceptionTargets`
 
 Current bridge protocol:

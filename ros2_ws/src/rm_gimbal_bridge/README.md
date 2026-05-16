@@ -31,32 +31,50 @@ rm_bear_detection -> /bear_detection/targets -> rm_gimbal_bridge -> USB-CDC -> S
 - 读取 STM32 诊断帧，确认下位机视觉开关、目标有效状态和调参数据。
 - 串口写失败时自动尝试 reopen。
 
-## 当前默认参数
+## 运行上下文说明
 
-板端脚本 `ros2_ws/scripts/run_rm_bridge_loop.sh` 的当前默认值：
+- 当前推荐入口：`bash ros2_ws/scripts/start_fast_follow_verified.sh`
+- 当前 baseline 使用 `FOLLOW_PROFILE=fast_best`。
+- `run_rm_bridge_loop.sh` 自身默认 profile 为 `stable`，但被 `start_fast_follow_verified.sh` 调用时会被覆盖为 `fast_best`。
+- `rm_gimbal_bridge.yaml` 和 `serial_bridge_node.cpp` 中的 `declare_parameter` 默认值是 fallback / legacy 默认值，不代表当前 fast_best baseline 的最终运行值。
+- 脚本传入的 `--ros-args -p` 优先级最高，是当前板端运行值的来源。
+
+## 当前 fast_best baseline 参数
+
+以下为 `start_fast_follow_verified.sh` 通过 `run_rm_bridge_loop.sh` 实际传入的 fast_best 运行值：
 
 ```bash
-DETECTOR_TOPIC=/bear_detection/targets
-ALLOWED_TARGET_TYPES=bear
-BRIDGE_MIN_CONFIDENCE=0.71
-ENABLE_FIXED_RATE_FOLLOW=true
-FOLLOW_SEND_RATE_HZ=50.0
-FOLLOW_CONTROL_MODE=light_predict
-FOLLOW_SMOOTHING_ALPHA=0.35
-FOLLOW_MAX_STEP_PX=36.0
-FOLLOW_DEADBAND_PX=5.0
-FAST_FOLLOW_ERROR_PX=120.0
-FAST_FOLLOW_SMOOTHING_ALPHA=0.55
-FAST_FOLLOW_MAX_STEP_PX=72.0
-LIGHT_FOLLOW_GAIN=0.45
-TARGET_HOLD_MS=350
-TARGET_SWITCH_RADIUS_PX=120.0
-TARGET_SWITCH_MIN_CONF_GAIN=0.30
-CENTER_GATE_X_RATIO=1.00
-CENTER_GATE_Y_RATIO=1.00
+input_topic=/bear_detection/targets
+allowed_target_types=['bear']
+min_confidence=0.71
+require_lower_vision_enabled=false
+serial_port=/dev/serial/by-id/usb-Batmancris_Gimbal_Control_CDC_3162376B3439-if00
+follow_send_rate_hz=80.0
+follow_interp_rate_hz=35.0
+follow_control_mode=light_predict
+follow_smoothing_alpha=0.50
+follow_max_step_px=75.0
+follow_deadband_px=5.0
+measurement_jitter_deadband_px=10.0
+fast_follow_error_px=95.0
+fast_follow_smoothing_alpha=0.62
+fast_follow_max_step_px=105.0
+light_follow_gain=0.58
+predict_alpha=0.65
+predict_beta=0.03
+predict_horizon_sec=0.025
+target_hold_ms=240
+target_switch_radius_px=200.0
+target_switch_min_conf_gain=0.30
+target_switch_center_gain_px=60.0
+min_send_delta_px=1.0
+send_keepalive_ms=20
+center_gate_x_ratio=1.00
+center_gate_y_ratio=1.00
+enable_fixed_rate_follow=true
 ```
 
-注意：源码里的 `declare_parameter` 是兜底默认值，实际板端运行时通常由脚本覆盖。
+注意：`rm_gimbal_bridge.yaml` 中的值是 fallback 默认值（面向 vehicle 场景），不代表当前 bear-follow baseline 的运行参数。
 
 ## 运行
 

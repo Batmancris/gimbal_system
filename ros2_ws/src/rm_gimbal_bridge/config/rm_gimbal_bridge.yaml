@@ -1,3 +1,8 @@
+# Fallback / legacy vehicle-oriented defaults.
+# 当前 TianAim v1 headless fast_best bear-follow baseline 不直接依赖这些默认值。
+# 推荐入口 start_fast_follow_verified.sh 会通过 run_rm_bridge_loop.sh 和
+# --ros-args -p 覆盖为 bear-follow 参数。
+# 不要因为看到此文件中的 vehicle 默认值，就误认为当前 baseline 是 vehicle pipeline。
 rm_gimbal_bridge:
   ros__parameters:
     input_topic: "/vehicle_detection/targets"
