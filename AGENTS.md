@@ -56,7 +56,7 @@ Important:
 `ros2_ws/`
 
 - owns the current ROS2 / TROS / RDK-X5 runtime mainline
-- includes `src/hik_camera`, `src/rm_armor_detection`, and `src/rm_gimbal_bridge`
+- includes `src/hik_camera`, `src/rm_bear_detection`, and `src/rm_gimbal_bridge`
 - owns current RDK runtime scripts under `scripts/`
 - default place for upper-level code changes
 
@@ -111,7 +111,7 @@ hik_camera
 
 Upper-level interfaces:
 
-- camera publishes `image_raw` and `/hbmem_img`
+- camera mainline output is `/hbmem_img`; `/image_raw` is legacy/debug-only and must not be used as a TianAim baseline dependency
 - detector consumes `/hbmem_img`
 - detector publishes `/bear_detection/targets`
 - bridge consumes `ai_msgs/msg/PerceptionTargets`
@@ -151,7 +151,7 @@ Direct current mainline commands:
   ```bash
   cd ros2_ws
   source /opt/tros/humble/setup.bash
-  colcon build --packages-select hik_camera rm_armor_detection rm_gimbal_bridge
+  colcon build --packages-select hik_camera rm_bear_detection rm_gimbal_bridge
   ```
 - ROS2 board-side startup (唯一推荐入口):
   ```bash
