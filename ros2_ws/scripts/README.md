@@ -44,6 +44,18 @@ ssh rdk-x5 "FOLLOW_PROFILE=stable bash /home/sunrise/rm_ws/scripts/start_fast_fo
 | `run_rm_det_loop.sh` | 检测节点循环守护 |
 | `run_rm_bridge_loop.sh` | 桥接节点循环守护，**fast_best 参数在此集中维护** |
 
+### 检测器选择 (DETECTOR_TYPE)
+
+`run_rm_det_loop.sh` 通过 `DETECTOR_TYPE` 环境变量选择启动哪个检测节点。
+
+| DETECTOR_TYPE | 启动节点 | 状态 |
+|---|---|---|
+| `bear`（默认） | `rm_bear_detection_node` | 主线推荐 |
+| `vehicle` | `rm_vehicle_detection_node` | legacy/可选 |
+| 其他值 | `rm_armor_detection` | 不推荐，后续轮次清理 |
+
+当前 `start_fast_follow_verified.sh` 硬编码 `DETECTOR_TYPE=bear`，正常启动路径不会触发 fallback。
+
 ### diagnostics
 
 | 脚本 | 说明 |
