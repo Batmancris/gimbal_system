@@ -17,6 +17,11 @@ BEAR_STABLE_MAX_TRACK_AGE_MS="${BEAR_STABLE_MAX_TRACK_AGE_MS:-200}"
 BEAR_PUBLISH_DEBUG_TEXT="${BEAR_PUBLISH_DEBUG_TEXT:-false}"
 BEAR_LOG_DETECTIONS="${BEAR_LOG_DETECTIONS:-false}"
 
+if [ "${DETECTOR_TYPE}" != "bear" ] && [ "${DETECTOR_TYPE}" != "vehicle" ]; then
+  echo "[FATAL] unknown DETECTOR_TYPE='${DETECTOR_TYPE}', expected 'bear' or 'vehicle'" >&2
+  exit 1
+fi
+
 cd "${REMOTE_WS}" || exit 1
 source /opt/tros/humble/setup.bash
 source "${REMOTE_WS}/install/setup.bash" || true
@@ -50,8 +55,6 @@ while true; do
         -p score_threshold:="${VEHICLE_SCORE_THRESHOLD}" \
         -p publish_debug_text:="${VEHICLE_PUBLISH_DEBUG_TEXT}"
     fi
-  else
-    ros2 run rm_armor_detection rm_armor_detection
   fi
   rc=$?
   printf '[%s] rm_det exited rc=%s, restarting in 2s\n' "$(date +%F_%T)" "${rc}"

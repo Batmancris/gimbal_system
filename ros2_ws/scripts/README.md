@@ -52,9 +52,9 @@ ssh rdk-x5 "FOLLOW_PROFILE=stable bash /home/sunrise/rm_ws/scripts/start_fast_fo
 |---|---|---|
 | `bear`（默认） | `rm_bear_detection_node` | 主线推荐 |
 | `vehicle` | `rm_vehicle_detection_node` | legacy/可选 |
-| 其他值 | `rm_armor_detection` | 不推荐，后续轮次清理 |
+| 其他值 | — | 脚本报错退出（FATAL），不会 fallback |
 
-当前 `start_fast_follow_verified.sh` 硬编码 `DETECTOR_TYPE=bear`，正常启动路径不会触发 fallback。
+当前 `start_fast_follow_verified.sh` 硬编码 `DETECTOR_TYPE=bear`，正常启动路径不受影响。
 
 ### diagnostics
 
