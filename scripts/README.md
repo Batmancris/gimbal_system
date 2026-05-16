@@ -11,7 +11,7 @@
 
 ## 脚本
 
-- `build_ros2_mainline.sh`：构建 `hik_camera rm_armor_detection rm_vehicle_detection rm_gimbal_bridge`。如需 bear 包，手动加上 `rm_bear_detection`。
+- `build_ros2_mainline.sh`：构建 `hik_camera rm_bear_detection rm_gimbal_bridge`。`rm_armor_detection` 和 `rm_vehicle_detection` 属于 legacy/optional，不是当前 bear-follow baseline 的默认构建目标。
 - `build_firmware_mainline.sh`：构建 STM32 固件主线。
 - `run_ros2_bridge.sh`：本地运行桥接 launch。
 - `tianaim_paths.sh`：路径解析辅助脚本。
