@@ -18,6 +18,8 @@ ros2 topic info /hbmem_img -v
 tmux -L autoaim capture-pane -pt hik_cam
 ```
 
+> 注意：`/image_raw` 仅在 `publish_image_raw:=true` 时才会发布。默认链路以 `/hbmem_img` 为准，不需要依赖 `/image_raw`。
+
 ## 运行
 
 ```bash

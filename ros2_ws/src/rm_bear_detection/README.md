@@ -84,11 +84,14 @@ ros2 run rm_bear_detection rm_bear_detection_node --ros-args \
 - `score_threshold=0.71` 是否会在运动模糊时丢目标。
 - 输出框中心是否稳定，是否存在明显跳变。
 
-如果高速时目标短暂丢失，可以临时降低阈值或稳定命中数做对比测试：
+如果高速时目标短暂丢失，可以临时降低阈值或稳定命中数做对比测试。当前 `score_threshold` 和 `stable_required_hits` 均通过 ROS2 parameters（`declare_parameter`）配置，不使用环境变量 `BEAR_SCORE_THRESHOLD` / `BEAR_STABLE_REQUIRED_HITS`。
+
+诊断时可通过 `--ros-args` 临时覆盖参数，例如：
 
 ```bash
-export BEAR_SCORE_THRESHOLD=0.65
-export BEAR_STABLE_REQUIRED_HITS=1
+ros2 run rm_bear_detection rm_bear_detection_node --ros-args \
+  -p score_threshold:=0.65 \
+  -p stable_required_hits:=1
 ```
 
 这只是诊断手段，不代表最终参数。

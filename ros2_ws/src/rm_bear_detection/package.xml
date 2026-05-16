@@ -4,7 +4,7 @@
   <name>rm_bear_detection</name>
   <version>0.1.0</version>
   <description>YOLOv8 bear detection node for the RDK-X5 runtime chain.</description>
-  <maintainer email="devnull@example.com">Codex</maintainer>
+  <maintainer email="zhonglinxuan901@gmail.com">Zhonglin Xuan</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
