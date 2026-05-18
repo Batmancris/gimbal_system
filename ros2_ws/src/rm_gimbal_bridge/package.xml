@@ -5,7 +5,7 @@
   <version>0.1.0</version>
   <description>Bridge ROS2 bear detections to the STM32 gimbal serial protocol.</description>
   <maintainer email="zhonglinxuan901@gmail.com">Zhonglin Xuan</maintainer>
-  <license>Apache License 2.0</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

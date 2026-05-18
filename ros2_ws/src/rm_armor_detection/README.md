@@ -15,6 +15,8 @@
 /hbmem_img -> rm_armor_detection -> /dnn_node_sample
 ```
 
+/dnn_node_sample 是该 legacy 包沿用的 TROS demo 默认输出话题，不是当前 TianAim bear-follow baseline 的标准接口。
+
 ## 运行
 
 ```bash
